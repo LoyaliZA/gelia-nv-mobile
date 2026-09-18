@@ -25,7 +25,7 @@ import type { ClienteSyncState } from './cliente.types'
 interface Props extends PropsWithChildren { session: MobileSession }
 
 const initialState: ClienteSyncState = {
-  phase: navigator.onLine ? 'idle' : 'offline',
+  phase: 'idle',
   downloaded: 0,
   total: null,
   lastSyncedAt: null,
@@ -130,14 +130,10 @@ export function ClienteSyncProvider({ children, session }: Props) {
   }, [scopeKey, session])
 
   const runSync = useCallback(async () => {
-    if (!navigator.onLine) {
-      setOnline(false)
-      setState((current) => ({ ...current, phase: 'offline', error: null }))
-      return
-    }
     try {
       let metadata = await leerSyncMetadata(scopeKey)
       metadata = metadata?.complete ? await incremental(metadata) : await bootstrap(metadata)
+      setOnline(true)
       setState({
         phase: 'ready',
         downloaded: metadata.downloaded,
@@ -151,6 +147,7 @@ export function ClienteSyncProvider({ children, session }: Props) {
         await limpiarCatalogo(scopeKey)
         try {
           const metadata = await bootstrap(null)
+          setOnline(true)
           setState({
             phase: 'ready',
             downloaded: metadata.downloaded,
@@ -182,8 +179,8 @@ export function ClienteSyncProvider({ children, session }: Props) {
 
   useEffect(() => {
     void syncNow()
-    const onOnline = () => { setOnline(true); void syncNow() }
-    const onOffline = () => { setOnline(false); setState((current) => ({ ...current, phase: 'offline' })) }
+    const onOnline = () => { void syncNow() }
+    const onOffline = () => { setOnline(false) }
     const onVisible = () => { if (document.visibilityState === 'visible') void syncNow() }
     window.addEventListener('online', onOnline)
     window.addEventListener('offline', onOffline)
@@ -197,11 +194,14 @@ export function ClienteSyncProvider({ children, session }: Props) {
 
   const findCliente = useCallback(async (numeroCliente: string) => {
     const catalogPending = state.phase !== 'ready'
-    if (navigator.onLine && catalogPending) {
+    if (catalogPending) {
       try {
-        return { cliente: await buscarClienteRemoto(session, numeroCliente), source: 'api' as const }
+        const cliente = await buscarClienteRemoto(session, numeroCliente)
+        setOnline(true)
+        return { cliente, source: 'api' as const }
       } catch (error) {
         if (error instanceof ApiError && error.status === 404) return { cliente: null, source: 'api' as const }
+        if (error instanceof ApiError && error.status === 0) setOnline(false)
       }
     }
     return { cliente: await buscarClienteLocal(scopeKey, numeroCliente), source: 'local' as const }

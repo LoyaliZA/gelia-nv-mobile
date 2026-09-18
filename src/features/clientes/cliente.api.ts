@@ -1,4 +1,4 @@
-import { ApiError, apiRequest } from '../../lib/api/apiClient'
+import { ApiError, API_CONNECT_TIMEOUT_MS, API_MAX_RETRIES, API_READ_TIMEOUT_MS, apiRequest } from '../../lib/api/apiClient'
 import type { MobileSession } from '../auth/auth.types'
 import type { ClienteMovil } from './cliente.types'
 
@@ -30,6 +30,12 @@ function auth(session: MobileSession) {
   return { token: session.accessToken, scopeVersion: session.scopeVersion }
 }
 
+const syncRequestOptions = {
+  connectTimeoutMs: API_CONNECT_TIMEOUT_MS,
+  readTimeoutMs: API_READ_TIMEOUT_MS,
+  retries: API_MAX_RETRIES,
+}
+
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? value as Record<string, unknown> : {}
 }
@@ -51,6 +57,7 @@ export async function iniciarBootstrap(session: MobileSession): Promise<Bootstra
   const payload = record(await apiRequest<unknown>('/mobile/sync/bootstrap', {
     method: 'POST',
     ...auth(session),
+    ...syncRequestOptions,
   }))
   const snapshotId = String(payload.snapshot_id ?? '')
   if (!snapshotId) throw new ApiError('GELIA no devolvió un snapshot válido.', 500, payload)
@@ -67,7 +74,10 @@ export async function descargarPaginaBootstrap(
     after_cliente_id: String(afterClienteId),
     limit: '100',
   })
-  const payload = record(await apiRequest<unknown>(`/mobile/sync/bootstrap?${query}`, auth(session)))
+  const payload = record(await apiRequest<unknown>(`/mobile/sync/bootstrap?${query}`, {
+    ...auth(session),
+    ...syncRequestOptions,
+  }))
   const clientes = list<ClienteMovil>(payload, ['clientes', 'data', 'items'])
   const maxFromItems = clientes.reduce((max, cliente) => Math.max(max, Number(cliente.id) || 0), afterClienteId)
   return {
@@ -87,13 +97,17 @@ export async function completarBootstrap(
     method: 'POST',
     body: { snapshot_id: snapshotId, items_count: itemsCount, max_cliente_id: maxClienteId },
     ...auth(session),
+    ...syncRequestOptions,
   }))
   return numberValue(payload, ['cursor', 'next_cursor', 'max_seq'])
 }
 
 export async function descargarCambios(session: MobileSession, cursor: number): Promise<ChangesPage> {
   const query = new URLSearchParams({ cursor: String(cursor), limit: '200' })
-  const payload = record(await apiRequest<unknown>(`/mobile/sync/changes?${query}`, auth(session)))
+  const payload = record(await apiRequest<unknown>(`/mobile/sync/changes?${query}`, {
+    ...auth(session),
+    ...syncRequestOptions,
+  }))
   const events = list<ClienteChange>(payload, ['events', 'changes', 'data', 'items'])
   const lastSeq = events.reduce((max, event) => Math.max(max, Number(event.seq) || 0), cursor)
   return {

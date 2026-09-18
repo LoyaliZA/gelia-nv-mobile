@@ -1,3 +1,5 @@
+import { Capacitor, CapacitorHttp } from '@capacitor/core'
+
 export class ApiError extends Error {
   readonly status: number
   readonly details: unknown
@@ -10,10 +12,18 @@ export class ApiError extends Error {
   }
 }
 
+export const API_CONNECT_TIMEOUT_MS = 15_000
+export const API_READ_TIMEOUT_MS = 45_000
+export const API_MAX_RETRIES = 3
+const RETRY_BASE_DELAY_MS = 1_000
+
 interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown
   token?: string
   scopeVersion?: string
+  connectTimeoutMs?: number
+  readTimeoutMs?: number
+  retries?: number
 }
 
 function apiBaseUrl() {
@@ -33,29 +43,129 @@ function errorMessage(payload: unknown, status: number) {
   return 'GELIA no pudo completar la solicitud.'
 }
 
-export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+function headersRecord(headers: Headers): Record<string, string> {
+  const record: Record<string, string> = {}
+  headers.forEach((value, key) => { record[key] = value })
+  return record
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+function isRetryableStatus(status: number) {
+  return status === 0 || status === 408 || status === 429 || status === 502 || status === 503 || status === 504
+}
+
+function connectionErrorMessage(cause?: unknown) {
+  if (cause instanceof DOMException && cause.name === 'AbortError') {
+    return 'La solicitud tardó demasiado. Revisa tu conexión.'
+  }
+  return 'No fue posible conectar con GELIA. Revisa tu conexión.'
+}
+
+async function requestWithNativeHttp(
+  url: string,
+  method: string,
+  headers: Headers,
+  body: string | undefined,
+  timeouts: { connectTimeoutMs: number; readTimeoutMs: number },
+) {
+  const response = await CapacitorHttp.request({
+    url,
+    method,
+    headers: headersRecord(headers),
+    data: body === undefined ? undefined : JSON.parse(body),
+    connectTimeout: timeouts.connectTimeoutMs,
+    readTimeout: timeouts.readTimeoutMs,
+  })
+  return { status: response.status, payload: response.data }
+}
+
+async function requestWithFetch(
+  url: string,
+  method: string,
+  headers: Headers,
+  body: string | undefined,
+  timeouts: { connectTimeoutMs: number; readTimeoutMs: number },
+) {
+  const controller = new AbortController()
+  const timeoutMs = timeouts.connectTimeoutMs + timeouts.readTimeoutMs
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const response = await fetch(url, {
+      method,
+      headers,
+      body,
+      signal: controller.signal,
+    })
+    window.clearTimeout(timeoutId)
+
+    const contentType = response.headers.get('content-type') ?? ''
+    const payload = contentType.includes('application/json')
+      ? await response.json().catch(() => null)
+      : await response.text().catch(() => '')
+
+    return { status: response.status, payload }
+  } catch (error) {
+    window.clearTimeout(timeoutId)
+    throw new ApiError(connectionErrorMessage(error), 0)
+  }
+}
+
+async function performRequest(
+  path: string,
+  options: ApiRequestOptions,
+  timeouts: { connectTimeoutMs: number; readTimeoutMs: number },
+) {
   const headers = new Headers(options.headers)
   headers.set('Accept', 'application/json')
   if (options.body !== undefined) headers.set('Content-Type', 'application/json')
   if (options.token) headers.set('Authorization', `Bearer ${options.token}`)
   if (options.scopeVersion) headers.set('X-Mobile-Scope-Version', options.scopeVersion)
 
-  let response: Response
+  const method = (options.method ?? 'GET').toUpperCase()
+  const body = options.body === undefined ? undefined : JSON.stringify(options.body)
+  const url = `${apiBaseUrl()}${path}`
+
   try {
-    response = await fetch(`${apiBaseUrl()}${path}`, {
-      ...options,
-      headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
-    })
-  } catch {
-    throw new ApiError('No fue posible conectar con GELIA. Revisa tu conexión.', 0)
+    if (Capacitor.isNativePlatform()) {
+      return await requestWithNativeHttp(url, method, headers, body, timeouts)
+    }
+    return await requestWithFetch(url, method, headers, body, timeouts)
+  } catch (error) {
+    if (error instanceof ApiError) throw error
+    throw new ApiError(connectionErrorMessage(error), 0)
+  }
+}
+
+async function executeRequest<T>(path: string, options: ApiRequestOptions): Promise<T> {
+  const timeouts = {
+    connectTimeoutMs: options.connectTimeoutMs ?? API_CONNECT_TIMEOUT_MS,
+    readTimeoutMs: options.readTimeoutMs ?? API_READ_TIMEOUT_MS,
+  }
+  const { status, payload } = await performRequest(path, options, timeouts)
+  if (!status || status < 200 || status >= 300) {
+    throw new ApiError(errorMessage(payload, status), status, payload)
+  }
+  return payload as T
+}
+
+export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+  const maxRetries = options.retries ?? API_MAX_RETRIES
+  let lastError: unknown
+
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    try {
+      return await executeRequest<T>(path, options)
+    } catch (error) {
+      lastError = error
+      const canRetry = error instanceof ApiError && isRetryableStatus(error.status) && attempt < maxRetries
+      if (!canRetry) throw error
+      await sleep(RETRY_BASE_DELAY_MS * (2 ** attempt))
+    }
   }
 
-  const contentType = response.headers.get('content-type') ?? ''
-  const payload = contentType.includes('application/json')
-    ? await response.json().catch(() => null)
-    : await response.text().catch(() => '')
-
-  if (!response.ok) throw new ApiError(errorMessage(payload, response.status), response.status, payload)
-  return payload as T
+  throw lastError
 }

@@ -5,6 +5,9 @@ const config: CapacitorConfig = {
   appName: 'gelia-nv',
   webDir: 'dist',
   plugins: {
+    CapacitorHttp: {
+      enabled: true,
+    },
     SplashScreen: {
       launchAutoHide: false,
       backgroundColor: '#101217',
