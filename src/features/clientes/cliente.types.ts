@@ -13,3 +13,13 @@ export interface ClienteMovil {
   alcance?: string
   [key: string]: unknown
 }
+
+export type ClienteSyncPhase = 'idle' | 'bootstrapping' | 'incremental' | 'ready' | 'offline' | 'error'
+
+export interface ClienteSyncState {
+  phase: ClienteSyncPhase
+  downloaded: number
+  total: number | null
+  lastSyncedAt: string | null
+  error: string | null
+}

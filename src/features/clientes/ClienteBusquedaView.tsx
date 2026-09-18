@@ -1,24 +1,35 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Icon } from '../../components/ui/Icon'
-import { buscarClienteLocal, hayCatalogoLocal } from './cliente.storage'
 import type { ClienteMovil } from './cliente.types'
+import { useClienteSync } from './useClienteSync'
 
 export function ClienteBusquedaView() {
   const [numero, setNumero] = useState('')
   const [searched, setSearched] = useState(false)
   const [cliente, setCliente] = useState<ClienteMovil | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [source, setSource] = useState<'api' | 'local' | null>(null)
+  const { findCliente, state } = useClienteSync()
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const normalized = numero.replace(/\D/g, '')
     if (!normalized) return
     setNumero(normalized)
-    setCliente(buscarClienteLocal(normalized))
-    setSearched(true)
+    setLoading(true)
+    try {
+      const result = await findCliente(normalized)
+      setCliente(result.cliente)
+      setSource(result.source)
+      setSearched(true)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const reset = () => { setNumero(''); setCliente(null); setSearched(false) }
+  const reset = () => { setNumero(''); setCliente(null); setSearched(false); setSource(null) }
+  const catalogReady = state.phase === 'ready' || state.downloaded > 0
 
   return (
     <div className="page-stack client-lookup">
@@ -35,7 +46,7 @@ export function ClienteBusquedaView() {
             <div className="lookup-input-wrap"><span>#</span>
               <input autoComplete="off" autoFocus id="numero-cliente" inputMode="numeric" onChange={(event) => { setNumero(event.target.value.replace(/\D/g, '')); setSearched(false) }} pattern="[0-9]*" placeholder="Ej. 10045" value={numero} />
             </div>
-            <button aria-label="Buscar cliente" className="search-button" disabled={!numero} type="submit"><Icon name="search" /></button>
+            <button aria-label="Buscar cliente" className="search-button" disabled={!numero || loading} type="submit"><Icon name={loading ? 'refresh' : 'search'} /></button>
           </div>
         </form>
         <div className="lookup-hint"><Icon name="shield" /> Consulta limitada a los clientes autorizados para tu usuario.</div>
@@ -44,6 +55,7 @@ export function ClienteBusquedaView() {
       {cliente && (
         <section className="client-result client-result--success" aria-live="polite">
           <div className="result-status"><span /> Cliente {cliente.es_inactivo ? 'inactivo' : 'activo'}</div>
+          <div className="result-source">Consulta desde {source === 'api' ? 'GELIA' : 'datos locales'}</div>
           <div className="client-number">#{cliente.numero_cliente}</div>
           <h2>{cliente.nombre}</h2>
           {cliente.nombre_razon_social && <p>{cliente.nombre_razon_social}</p>}
@@ -60,8 +72,8 @@ export function ClienteBusquedaView() {
       {searched && !cliente && (
         <section className="empty-result" aria-live="polite">
           <div className="empty-icon"><Icon name="users" /></div>
-          <h2>{hayCatalogoLocal() ? 'Cliente no encontrado' : 'Catálogo pendiente de sincronizar'}</h2>
-          <p>{hayCatalogoLocal() ? `No existe un cliente autorizado con el número ${numero}.` : 'La vista está preparada para descargar los clientes autorizados desde GELIA.'}</p>
+          <h2>{catalogReady || source === 'api' ? 'Cliente no encontrado' : 'Catálogo pendiente de sincronizar'}</h2>
+          <p>{catalogReady || source === 'api' ? `No existe un cliente autorizado con el número ${numero}.` : 'Conéctate a internet para descargar tus clientes autorizados desde GELIA.'}</p>
           <button className="secondary-button" onClick={reset}>Limpiar búsqueda</button>
         </section>
       )}

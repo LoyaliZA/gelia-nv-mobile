@@ -156,6 +156,7 @@ html.glass-active .bottom-navigation { background: color-mix(in srgb, var(--surf
 .client-result, .empty-result { padding: 1.35rem; }
 .result-status { width: fit-content; padding: .42rem .65rem; display: flex; align-items: center; gap: .4rem; border-radius: 99px; color: #16a34a; background: rgba(34,197,94,.1); font-size: .63rem; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
 .result-status span { width: .45rem; height: .45rem; border-radius: 50%; background: #22c55e; }
+.result-source { margin-top: .7rem; color: var(--muted); font-size: .62rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
 .client-number { margin-top: 1.2rem; color: var(--color-primario); font-size: .78rem; font-weight: 900; letter-spacing: .08em; }
 .client-result h2, .empty-result h2, .profile-card h2 { margin: .25rem 0; font-size: 1.5rem; letter-spacing: -.04em; text-transform: uppercase; }
 .client-result > p, .profile-card > p { margin: 0; color: var(--muted); font-size: .78rem; }
@@ -174,12 +175,19 @@ html.glass-active .bottom-navigation { background: color-mix(in srgb, var(--surf
 .feature-copy strong { font-size: .88rem; }
 .feature-copy small { color: var(--muted); font-size: .7rem; line-height: 1.4; }
 .feature-arrow { color: var(--muted); }
-.sync-card { padding: 1rem; display: grid; grid-template-columns: 2.6rem 1fr auto; align-items: center; gap: .75rem; }
+.sync-card { width: 100%; padding: 1rem; display: grid; grid-template-columns: 2.6rem 1fr auto; align-items: center; gap: .75rem; color: inherit; text-align: left; cursor: pointer; }
+.sync-card:disabled { cursor: default; opacity: 1; }
 .sync-card > div { width: 2.6rem; height: 2.6rem; display: grid; place-items: center; border-radius: .85rem; background: var(--surface-soft); color: var(--muted); }
 .sync-card > span { display: flex; flex-direction: column; gap: .2rem; }
 .sync-card strong { font-size: .8rem; }
 .sync-card small { color: var(--muted); font-size: .65rem; }
 .sync-card b { padding: .35rem .5rem; border-radius: .55rem; color: #f59e0b; background: rgba(245,158,11,.1); font-size: .55rem; text-transform: uppercase; }
+.sync-card .sync-status--ready { color: #16a34a; background: rgba(34,197,94,.1); }
+.sync-card .sync-status--error { color: #dc2626; background: rgba(239,68,68,.1); }
+.sync-icon--active svg { animation: sync-spin 1s linear infinite; }
+.online-indicator--offline { color: #f59e0b; }
+.online-indicator--offline span { background: #f59e0b; }
+@keyframes sync-spin { to { transform: rotate(360deg); } }
 
 .profile-card { padding: 1.4rem; text-align: center; }
 .profile-avatar, .drawer-avatar { display: grid; place-items: center; border-radius: 50%; color: #fff; background: var(--color-primario); font-weight: 900; }

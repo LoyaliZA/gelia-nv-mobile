@@ -3,6 +3,7 @@ import { DashboardView } from '../features/dashboard/DashboardView'
 import { LoginView } from '../features/auth/LoginView'
 import { useAuth } from '../features/auth/useAuth'
 import { ClienteBusquedaView } from '../features/clientes/ClienteBusquedaView'
+import { ClienteSyncProvider } from '../features/clientes/ClienteSyncProvider'
 import { PerfilView } from '../features/profile/PerfilView'
 import { MobileAppLayout } from '../layouts/MobileAppLayout'
 import { useAppRoute } from './routes'
@@ -26,16 +27,18 @@ export function AppRouter() {
   }
 
   return (
-    <MobileAppLayout
-      activeRoute={route}
-      onNavigate={navigate}
-      onLogout={auth.logout}
-      permissions={auth.session.permissions}
-      user={auth.session.user}
-    >
-      {route === 'inicio' && <DashboardView onOpenClients={() => navigate('clientes')} />}
-      {route === 'clientes' && <ClienteBusquedaView />}
-      {route === 'perfil' && <PerfilView session={auth.session} onLogout={auth.logout} />}
-    </MobileAppLayout>
+    <ClienteSyncProvider session={auth.session}>
+      <MobileAppLayout
+        activeRoute={route}
+        onNavigate={navigate}
+        onLogout={auth.logout}
+        permissions={auth.session.permissions}
+        user={auth.session.user}
+      >
+        {route === 'inicio' && <DashboardView onOpenClients={() => navigate('clientes')} />}
+        {route === 'clientes' && <ClienteBusquedaView />}
+        {route === 'perfil' && <PerfilView session={auth.session} onLogout={auth.logout} />}
+      </MobileAppLayout>
+    </ClienteSyncProvider>
   )
 }

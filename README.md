@@ -1,5 +1,18 @@
 # React + TypeScript + Vite
 
+## Sincronización móvil de clientes
+
+Al iniciar una sesión, la app descarga en segundo plano el catálogo autorizado mediante el flujo de snapshots de GELIANV:
+
+1. `POST /mobile/sync/bootstrap`
+2. `GET /mobile/sync/bootstrap` en páginas de hasta 100 clientes
+3. `POST /mobile/sync/bootstrap/complete`
+4. `GET /mobile/sync/changes` para aplicar cambios incrementales
+
+Los clientes se guardan en IndexedDB, separados por usuario y `scope_version`. La sincronización se reanuda cuando vuelve la conexión o la app regresa al primer plano. Los conflictos `scope_changed`, `cursor_expired`, `snapshot_expired` y `bootstrap_mismatch` reinician automáticamente el catálogo del alcance actual.
+
+Mientras el bootstrap está en curso, las búsquedas en línea usan `GET /clientes/{numero_cliente}` y recurren a IndexedDB si la consulta remota no está disponible. Una vez completada la descarga, las búsquedas se resuelven localmente.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
