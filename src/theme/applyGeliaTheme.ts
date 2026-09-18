@@ -24,7 +24,8 @@ function resolveAccentColor(theme: TemaVisual): string {
   const colorHex = typeof theme.color_hex === 'string' ? theme.color_hex.trim() : ''
   if (colorHex.startsWith('#')) return colorHex
 
-  const colorName = String(theme.color_nombre || 'rosa').toLowerCase()
+  const colorName = String(theme.color_nombre || '').trim().toLowerCase()
+  if (!colorName) return ACCENT_COLORS.rosa
   if (colorName.startsWith('#')) return colorName
   return ACCENT_COLORS[colorName] || ACCENT_COLORS.rosa
 }

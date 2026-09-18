@@ -47,17 +47,19 @@ function variantClass(variant: GeliaLogoVariant) {
 
 export function GeliaLogo({
   className = '',
-  accentColor = 'var(--color-primario)',
+  accentColor,
   variant = 'default',
   progress = null,
 }: GeliaLogoProps) {
   const clipId = useId()
   const fluidY = progress !== null ? 100 - Math.min(100, Math.max(0, progress)) : 0
+  const explicitColor = accentColor && accentColor !== 'var(--color-primario)' ? accentColor : undefined
 
   return (
     <svg
       viewBox="0 0 100 100"
       className={`gelia-logo ${className}`.trim()}
+      style={explicitColor ? { color: explicitColor } : undefined}
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
@@ -79,7 +81,7 @@ export function GeliaLogo({
               <polygon key={`bg-${index}`} points={polygon.points} opacity={polygon.opacity} />
             ))}
           </g>
-          <g fill={accentColor} clipPath={`url(#${clipId})`} className="gelia-logo--fluid-sparkle">
+          <g fill="currentColor" clipPath={`url(#${clipId})`} className="gelia-logo--fluid-sparkle">
             {POLYGON_DATA.map((polygon, index) => (
               <polygon
                 key={`fill-${index}`}
@@ -91,7 +93,7 @@ export function GeliaLogo({
           </g>
         </>
       ) : (
-        <g fill={accentColor} className={variantClass(variant)}>
+        <g fill="currentColor" className={variantClass(variant)}>
           {POLYGON_DATA.map((polygon, index) => (
             <polygon
               key={index}

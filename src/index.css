@@ -53,7 +53,7 @@ svg:not(.gelia-logo) { width: 1.25rem; height: 1.25rem; }
 
 #root { min-height: 100vh; min-height: 100dvh; }
 
-.gelia-logo { display: block; flex: 0 0 auto; width: var(--gelia-logo-size, 2.75rem); height: var(--gelia-logo-size, 2.75rem); overflow: visible; }
+.gelia-logo { display: block; flex: 0 0 auto; width: var(--gelia-logo-size, 2.75rem); height: var(--gelia-logo-size, 2.75rem); overflow: visible; color: var(--color-primario); }
 .gelia-logo--brand { --gelia-logo-size: 2.75rem; filter: drop-shadow(0 10px 24px color-mix(in srgb, var(--color-primario) 28%, transparent)); }
 .gelia-logo--splash { --gelia-logo-size: 4rem; filter: drop-shadow(0 14px 30px color-mix(in srgb, var(--color-primario) 32%, transparent)); }
 .gelia-logo-bg { opacity: .2; }

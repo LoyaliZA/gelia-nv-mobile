@@ -1,3 +1,5 @@
+import { App as CapacitorApp } from '@capacitor/app'
+import { Capacitor } from '@capacitor/core'
 import { useEffect, useMemo, useState } from 'react'
 import type { PropsWithChildren } from 'react'
 import { ApiError } from '../../lib/api/apiClient'
@@ -6,7 +8,7 @@ import { applyGeliaTheme, clearGeliaTheme } from '../../theme/applyGeliaTheme'
 import { fetchMobileMe, loginMobile, logoutMobile } from './auth.api'
 import { AuthContext } from './AuthContext'
 import type { AuthState } from './AuthContext'
-import type { LoginCredentials } from './auth.types'
+import type { LoginCredentials, MobileSession } from './auth.types'
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [state, setState] = useState<AuthState>(() => (
@@ -21,7 +23,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       return () => { active = false }
     }
 
-    const refreshSession = (session = stored) => fetchMobileMe(session)
+    const refreshSession = (session: MobileSession) => fetchMobileMe(session)
       .then((freshSession) => {
         if (!active) return
         writeSession(freshSession)
@@ -31,6 +33,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       .catch((error: unknown) => {
         if (!active) return
         if (error instanceof ApiError && error.status !== 401) {
+          applyGeliaTheme(session.temaVisual)
           setState({ status: 'authenticated', session })
           return
         }
@@ -40,19 +43,39 @@ export function AuthProvider({ children }: PropsWithChildren) {
       })
 
     applyGeliaTheme(stored.temaVisual)
-    void refreshSession()
+    void refreshSession(stored)
 
     const onVisible = () => {
       if (document.visibilityState !== 'visible') return
       const current = readSession()
       if (!current) return
+      applyGeliaTheme(current.temaVisual)
       void refreshSession(current)
     }
 
     document.addEventListener('visibilitychange', onVisible)
+
+    let appStateListener: { remove: () => void } | undefined
+    if (Capacitor.isNativePlatform()) {
+      void CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+        if (!isActive) return
+        const current = readSession()
+        if (!current) return
+        applyGeliaTheme(current.temaVisual)
+        void refreshSession(current)
+      }).then((listener) => {
+        if (!active) {
+          listener.remove()
+          return
+        }
+        appStateListener = listener
+      })
+    }
+
     return () => {
       active = false
       document.removeEventListener('visibilitychange', onVisible)
+      appStateListener?.remove()
     }
   }, [])
 
