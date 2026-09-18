@@ -1,5 +1,6 @@
 import type { AppRoute } from '../../app/routes'
 import type { GeliaUser } from '../../features/auth/auth.types'
+import { GeliaLogo } from '../ui/GeliaLogo'
 import { Icon } from '../ui/Icon'
 
 interface ProDrawerProps {
@@ -20,7 +21,7 @@ export function ProDrawer({ activeRoute, open, onClose, onLogout, onNavigate, pe
       <button aria-label="Cerrar menú" className={`drawer-backdrop ${open ? 'open' : ''}`} onClick={onClose} />
       <aside aria-hidden={!open} className={`pro-drawer ${open ? 'open' : ''}`}>
         <header className="drawer-header">
-          <div className="brand-lockup"><div className="gelia-mark">G</div><div><span className="eyebrow">GELIA-NV</span><strong>Mobile</strong></div></div>
+          <div className="brand-lockup"><GeliaLogo className="gelia-logo--brand" variant="sparkle" /><div><span className="eyebrow">GELIA-NV</span><strong>Mobile</strong></div></div>
           <button aria-label="Cerrar menú" className="icon-button" onClick={onClose}><Icon name="close" /></button>
         </header>
         <div className="drawer-user"><div className="drawer-avatar">{user.name.charAt(0).toUpperCase()}</div><div><strong>{user.name}</strong><span>{user.email || user.username}</span></div></div>

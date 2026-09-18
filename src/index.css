@@ -1,9 +1,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
   --color-primario: #ec4899;
   --font-principal: Inter, system-ui, sans-serif;
   --font-scale: 1;
+  --bg-image-pc: none;
+  --bg-image-movil: none;
+  --gelia-content-max: 52rem;
+  --gelia-main-padding-x: 1rem;
+  --gelia-page-shell-padding-block: 1.4rem;
+  --gelia-page-shell-padding-inline: 1rem;
   --bg: #f5f6fa;
   --surface: rgba(255,255,255,.92);
   --surface-solid: #fff;
@@ -38,23 +49,42 @@ body { margin: 0; min-width: 320px; min-height: 100vh; min-height: 100dvh; overf
 button, input { font: inherit; }
 button { color: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
-svg { width: 1.25rem; height: 1.25rem; }
+svg:not(.gelia-logo) { width: 1.25rem; height: 1.25rem; }
 
 #root { min-height: 100vh; min-height: 100dvh; }
 
+.gelia-logo { display: block; flex: 0 0 auto; width: var(--gelia-logo-size, 2.75rem); height: var(--gelia-logo-size, 2.75rem); overflow: visible; }
+.gelia-logo--brand { --gelia-logo-size: 2.75rem; filter: drop-shadow(0 10px 24px color-mix(in srgb, var(--color-primario) 28%, transparent)); }
+.gelia-logo--splash { --gelia-logo-size: 4rem; filter: drop-shadow(0 14px 30px color-mix(in srgb, var(--color-primario) 32%, transparent)); }
+.gelia-logo-bg { opacity: .2; }
+.gelia-logo-fluid-rise { animation: gelia-logo-fluid-rise 3s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+.gelia-logo--default { transition: all .3s; }
+.gelia-logo--spin { animation: gelia-logo-spin-slow 4s linear infinite; transform-origin: center; }
+.gelia-logo--pulse { animation: gelia-logo-pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.gelia-logo--float { animation: gelia-logo-float 3s ease-in-out infinite; }
+.gelia-logo--shatter polygon { animation: gelia-logo-shatter 3s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite; transform-origin: center; }
+.gelia-logo--sparkle polygon { animation: gelia-logo-sparkle 2.5s infinite; animation-delay: var(--delay); }
+.gelia-logo--fluid-sparkle polygon { animation: gelia-logo-fluid-sparkle 3s infinite; animation-delay: var(--delay); }
+
+@keyframes gelia-logo-spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes gelia-logo-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes gelia-logo-pulse-glow { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .7; transform: scale(.95); filter: drop-shadow(0 0 10px currentColor); } }
+@keyframes gelia-logo-shatter { 0%, 100%, 25%, 75% { transform: translate(0, 0) rotate(0deg); opacity: 1; } 50% { transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(.5); opacity: 0; } }
+@keyframes gelia-logo-sparkle { 0%, 100%, 20% { fill: inherit; filter: none; } 10% { fill: #fff; filter: drop-shadow(0 0 8px rgba(255, 255, 255, .9)); opacity: 1; } }
+@keyframes gelia-logo-fluid-rise { 0%, 100% { transform: translateY(100px); } 50%, 80% { transform: translateY(0); } }
+@keyframes gelia-logo-fluid-sparkle { 0%, 45%, 65%, 100% { fill: inherit; filter: none; } 50% { fill: #fff; filter: drop-shadow(0 0 8px rgba(255, 255, 255, .9)); opacity: 1; } }
+
 .eyebrow { color: var(--color-primario); font-size: .67rem; font-weight: 900; letter-spacing: .17em; }
-.gelia-mark { width: 2.75rem; height: 2.75rem; display: grid; place-items: center; border-radius: 1rem; color: #fff; background: linear-gradient(145deg, color-mix(in srgb, var(--color-primario) 75%, white), var(--color-primario)); box-shadow: 0 10px 30px color-mix(in srgb, var(--color-primario) 30%, transparent); font-size: 1.35rem; font-weight: 900; font-style: italic; }
-.gelia-mark--large { width: 4rem; height: 4rem; border-radius: 1.4rem; font-size: 2rem; }
 .brand-lockup { display: flex; align-items: center; gap: .8rem; }
 .brand-lockup > div:last-child { display: flex; flex-direction: column; gap: .08rem; }
 .brand-lockup strong { font-size: .92rem; letter-spacing: -.02em; }
 
-.splash-screen { min-height: 100dvh; display: grid; place-content: center; justify-items: center; gap: 1rem; background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--color-primario) 12%, transparent), transparent 36%), var(--bg); }
+.splash-screen { min-height: 100dvh; display: grid; place-content: center; justify-items: center; gap: 1rem; background: var(--bg-image-movil) center top / cover no-repeat, radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--color-primario) 12%, transparent), transparent 36%), var(--bg); }
 .splash-screen p { color: var(--muted); font-size: .78rem; font-weight: 700; letter-spacing: .06em; }
 .splash-pulse { width: 3rem; height: 3px; border-radius: 99px; background: var(--surface-soft); overflow: hidden; position: relative; }
 .splash-pulse::after { content: ''; position: absolute; inset: 0; width: 45%; background: var(--color-primario); animation: loading 1s ease-in-out infinite; }
 
-.login-screen { min-height: 100dvh; display: grid; background: var(--bg); }
+.login-screen { min-height: 100dvh; display: grid; background: var(--bg-image-movil) center top / cover no-repeat, var(--bg); }
 .login-hero { min-height: 36vh; padding: calc(env(safe-area-inset-top, 0px) + 1.5rem) 1.5rem 3rem; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; background: #101217; color: #fff; }
 .login-hero::before { content: ''; position: absolute; width: 22rem; height: 22rem; right: -11rem; top: -9rem; border-radius: 50%; background: var(--color-primario); filter: blur(3px); opacity: .28; }
 .login-hero::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 78% 10%, transparent 0 11%, rgba(255,255,255,.04) 11.2% 11.6%, transparent 12%), linear-gradient(135deg, transparent 55%, rgba(255,255,255,.035)); pointer-events: none; }
@@ -81,7 +111,7 @@ svg { width: 1.25rem; height: 1.25rem; }
 .login-card footer { margin-top: 1.25rem; padding-top: 1rem; display: flex; align-items: center; gap: .55rem; border-top: 1px solid var(--border); color: var(--muted); font-size: .66rem; line-height: 1.45; }
 .login-card footer svg { width: 1rem; flex: 0 0 auto; color: var(--color-primario); }
 
-.app-shell { min-height: 100dvh; background: radial-gradient(circle at 80% 0, color-mix(in srgb, var(--color-primario) 7%, transparent), transparent 22rem), var(--bg); }
+.app-shell { min-height: 100dvh; background: var(--bg-image-movil) center top / cover no-repeat, radial-gradient(circle at 80% 0, color-mix(in srgb, var(--color-primario) 7%, transparent), transparent 22rem), var(--bg); }
 .mobile-header { height: calc(4.15rem + env(safe-area-inset-top, 0px)); padding: env(safe-area-inset-top, 0px) 1rem 0; display: grid; grid-template-columns: 2.7rem 1fr auto; align-items: center; gap: .65rem; position: sticky; top: 0; z-index: 50; border-bottom: 1px solid var(--border); background: var(--surface); backdrop-filter: blur(24px); }
 .icon-button { width: 2.55rem; height: 2.55rem; display: grid; place-items: center; border: 1px solid var(--border); border-radius: .85rem; background: var(--surface-soft); cursor: pointer; }
 .mobile-header-title { display: flex; flex-direction: column; }
@@ -89,13 +119,31 @@ svg { width: 1.25rem; height: 1.25rem; }
 .mobile-header-title small { color: var(--muted); font-size: .58rem; font-weight: 800; letter-spacing: .15em; }
 .online-indicator { display: flex; align-items: center; gap: .35rem; color: var(--muted); font-size: .61rem; font-weight: 800; text-transform: uppercase; }
 .online-indicator span { width: .46rem; height: .46rem; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 4px rgba(34,197,94,.1); }
-.app-content { width: min(100%, 52rem); min-height: calc(100dvh - 9rem); margin: auto; padding: 1.4rem 1rem calc(6.5rem + env(safe-area-inset-bottom, 0px)); }
+.app-content { width: min(100%, var(--gelia-content-max, 52rem)); min-height: calc(100dvh - 9rem); margin: auto; padding: var(--gelia-page-shell-padding-block, 1.4rem) var(--gelia-page-shell-padding-inline, 1rem) calc(6.5rem + env(safe-area-inset-bottom, 0px)); }
 .page-stack { display: grid; gap: 1.15rem; animation: page-in .28s ease-out both; }
 .page-heading { padding: .4rem .1rem; }
 .page-heading h1 { margin: .35rem 0 .45rem; font-size: clamp(1.75rem, 7vw, 2.6rem); line-height: 1; letter-spacing: -.055em; }
 .page-heading p { max-width: 34rem; margin: 0; color: var(--muted); font-size: .82rem; line-height: 1.55; }
 
-.lookup-card, .client-result, .empty-result, .profile-card, .feature-card, .sync-card { border: 1px solid var(--border); border-radius: 1.45rem; background: var(--surface); box-shadow: 0 14px 45px rgba(0,0,0,.06); backdrop-filter: blur(18px); }
+.lookup-card, .client-result, .empty-result, .profile-card, .feature-card, .sync-card { border: 1px solid var(--border); border-radius: 1.45rem; background: var(--surface); box-shadow: 0 14px 45px rgba(0,0,0,.06); backdrop-filter: blur(18px); transition: background-color .3s, border-color .3s, backdrop-filter .3s; }
+html:not(.glass-active) .lookup-card,
+html:not(.glass-active) .client-result,
+html:not(.glass-active) .empty-result,
+html:not(.glass-active) .profile-card,
+html:not(.glass-active) .feature-card,
+html:not(.glass-active) .sync-card,
+html:not(.glass-active) .login-card,
+html:not(.glass-active) .mobile-header,
+html:not(.glass-active) .bottom-navigation { background: var(--surface-solid); }
+html.glass-active .lookup-card,
+html.glass-active .client-result,
+html.glass-active .empty-result,
+html.glass-active .profile-card,
+html.glass-active .feature-card,
+html.glass-active .sync-card,
+html.glass-active .login-card { background: color-mix(in srgb, var(--surface) 72%, transparent); backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px); }
+html.glass-active .mobile-header,
+html.glass-active .bottom-navigation { background: color-mix(in srgb, var(--surface) 78%, transparent); backdrop-filter: blur(26px); -webkit-backdrop-filter: blur(26px); }
 .lookup-card { padding: 1.2rem; }
 .lookup-input-row { margin-top: .5rem; display: grid; grid-template-columns: 1fr 3.4rem; gap: .65rem; }
 .lookup-input-wrap { min-width: 0; display: flex; align-items: center; }

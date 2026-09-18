@@ -1,3 +1,4 @@
+import { GeliaLogo } from '../components/ui/GeliaLogo'
 import { DashboardView } from '../features/dashboard/DashboardView'
 import { LoginView } from '../features/auth/LoginView'
 import { useAuth } from '../features/auth/useAuth'
@@ -13,7 +14,7 @@ export function AppRouter() {
   if (auth.status === 'booting') {
     return (
       <main className="splash-screen" aria-live="polite">
-        <div className="gelia-mark gelia-mark--large">G</div>
+        <GeliaLogo className="gelia-logo--splash" variant="fluid-fill" />
         <div className="splash-pulse" />
         <p>Validando sesión segura…</p>
       </main>

@@ -21,8 +21,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       return () => { active = false }
     }
 
-    applyGeliaTheme(stored.temaVisual)
-    fetchMobileMe(stored)
+    const refreshSession = (session = stored) => fetchMobileMe(session)
       .then((freshSession) => {
         if (!active) return
         writeSession(freshSession)
@@ -32,7 +31,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       .catch((error: unknown) => {
         if (!active) return
         if (error instanceof ApiError && error.status !== 401) {
-          setState({ status: 'authenticated', session: stored })
+          setState({ status: 'authenticated', session })
           return
         }
         clearSession()
@@ -40,7 +39,21 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setState({ status: 'guest' })
       })
 
-    return () => { active = false }
+    applyGeliaTheme(stored.temaVisual)
+    void refreshSession()
+
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      const current = readSession()
+      if (!current) return
+      void refreshSession(current)
+    }
+
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      active = false
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [])
 
   const value = useMemo(() => ({

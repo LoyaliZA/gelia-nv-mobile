@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { GeliaLogo } from '../../components/ui/GeliaLogo'
 import { Icon } from '../../components/ui/Icon'
 import { ApiError } from '../../lib/api/apiClient'
 import type { LoginCredentials } from './auth.types'
@@ -30,7 +31,7 @@ export function LoginView({ onLogin }: LoginViewProps) {
     <main className="login-screen">
       <section className="login-hero">
         <div className="brand-lockup">
-          <div className="gelia-mark">G</div>
+          <GeliaLogo className="gelia-logo--brand" variant="sparkle" />
           <div><span className="eyebrow">GELIA-NV</span><strong>Operación móvil</strong></div>
         </div>
         <div className="login-message">

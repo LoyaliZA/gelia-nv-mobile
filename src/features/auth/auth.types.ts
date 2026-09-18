@@ -1,6 +1,7 @@
 export interface TemaVisual {
   modo?: 'dark' | 'light'
   color_nombre?: string
+  color_hex?: string
   fondo_base?: string
   fuente_principal?: string
   escala_fuente?: number
