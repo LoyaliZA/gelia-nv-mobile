@@ -20,15 +20,16 @@ export function LoginView({ onLogin, onLoginWithPasskey }: LoginViewProps) {
   const [mostrarHuella, setMostrarHuella] = useState(false)
 
   useEffect(() => {
-    if (!webAuthnSoportado() || login.trim().length < 3) {
-      setMostrarHuella(false)
-      return
-    }
+    const canCheckPasskey = webAuthnSoportado() && login.trim().length >= 3
     const timeout = window.setTimeout(() => {
+      if (!canCheckPasskey) {
+        setMostrarHuella(false)
+        return
+      }
       void passkeyLoginOptions(login.trim())
         .then((options) => setMostrarHuella((options.allowCredentials?.length ?? 0) > 0))
         .catch(() => setMostrarHuella(false))
-    }, 400)
+    }, canCheckPasskey ? 400 : 0)
     return () => window.clearTimeout(timeout)
   }, [login])
 
