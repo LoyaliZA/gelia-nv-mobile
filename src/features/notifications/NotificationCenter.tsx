@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Icon } from '../../components/ui/Icon'
 import type { MobileSession } from '../auth/auth.types'
 import { fetchNotifications, markAllNotificationsAsRead, markNotificationAsRead } from './notification.api'
@@ -134,7 +135,7 @@ export function NotificationCenter({ session }: NotificationCenterProps) {
         {unreadCount > 0 && <span className="notification-badge" aria-hidden="true">{unreadCount > 9 ? '9+' : unreadCount}</span>}
       </button>
 
-      {open && (
+      {open && createPortal(
         <div className="notification-layer">
           <button aria-label="Cerrar notificaciones" className="notification-backdrop" onClick={() => setOpen(false)} type="button" />
           <section aria-labelledby="notification-title" aria-modal="true" className="notification-panel" role="dialog">
@@ -173,7 +174,8 @@ export function NotificationCenter({ session }: NotificationCenterProps) {
               </footer>
             )}
           </section>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   )
