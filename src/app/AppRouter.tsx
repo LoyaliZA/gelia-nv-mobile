@@ -32,8 +32,7 @@ export function AppRouter() {
         activeRoute={route}
         onNavigate={navigate}
         onLogout={auth.logout}
-        permissions={auth.session.permissions}
-        user={auth.session.user}
+        session={auth.session}
       >
         {route === 'inicio' && <DashboardView onOpenClients={() => navigate('clientes')} />}
         {route === 'clientes' && <ClienteBusquedaView />}
