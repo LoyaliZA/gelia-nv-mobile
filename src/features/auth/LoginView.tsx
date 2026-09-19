@@ -1,17 +1,36 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { GeliaLogo } from '../../components/ui/GeliaLogo'
 import { Icon } from '../../components/ui/Icon'
 import { ApiError } from '../../lib/api/apiClient'
+import { passkeyLoginOptions, webAuthnSoportado } from './auth.api'
 import type { LoginCredentials } from './auth.types'
 
-interface LoginViewProps { onLogin: (credentials: LoginCredentials) => Promise<void> }
+interface LoginViewProps {
+  onLogin: (credentials: LoginCredentials) => Promise<void>
+  onLoginWithPasskey: (login: string) => Promise<void>
+}
 
-export function LoginView({ onLogin }: LoginViewProps) {
+export function LoginView({ onLogin, onLoginWithPasskey }: LoginViewProps) {
   const [login, setLogin] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [passkeySubmitting, setPasskeySubmitting] = useState(false)
+  const [mostrarHuella, setMostrarHuella] = useState(false)
+
+  useEffect(() => {
+    if (!webAuthnSoportado() || login.trim().length < 3) {
+      setMostrarHuella(false)
+      return
+    }
+    const timeout = window.setTimeout(() => {
+      void passkeyLoginOptions(login.trim())
+        .then((options) => setMostrarHuella((options.allowCredentials?.length ?? 0) > 0))
+        .catch(() => setMostrarHuella(false))
+    }, 400)
+    return () => window.clearTimeout(timeout)
+  }, [login])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -27,17 +46,30 @@ export function LoginView({ onLogin }: LoginViewProps) {
     }
   }
 
+  const handlePasskey = async () => {
+    if (!login.trim()) return
+    setPasskeySubmitting(true)
+    setError('')
+    try {
+      await onLoginWithPasskey(login.trim())
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'No fue posible entrar con huella.')
+    } finally {
+      setPasskeySubmitting(false)
+    }
+  }
+
   return (
     <main className="login-screen">
       <section className="login-hero">
         <div className="brand-lockup">
           <GeliaLogo className="gelia-logo--brand" variant="sparkle" />
-          <div><span className="eyebrow">GELIA-NV</span><strong>Operación móvil</strong></div>
+          <div><span className="eyebrow">GELIA-NV</span><strong>1.0.0</strong></div>
         </div>
         <div className="login-message">
           <span className="security-chip"><Icon name="shield" /> Acceso protegido</span>
           <h1>Tu operación,<br /><em>siempre contigo.</em></h1>
-          <p>Consulta clientes y valida su información directamente con tu cuenta de GELIA.</p>
+          <p>Ingresa a tu cuenta de GELIA-NV para ver tus operaciones y validar tu información.</p>
         </div>
       </section>
 
@@ -46,7 +78,7 @@ export function LoginView({ onLogin }: LoginViewProps) {
           <header>
             <span className="eyebrow">BIENVENIDO DE NUEVO_</span>
             <h2>Iniciar sesión</h2>
-            <p>Utiliza las mismas credenciales de GELIA-NV.</p>
+            <p>Ingresa tus credenciales de GELIA-NV.</p>
           </header>
           <form onSubmit={handleSubmit}>
             <label>Usuario o correo
@@ -60,6 +92,12 @@ export function LoginView({ onLogin }: LoginViewProps) {
               <span>{submitting ? 'Verificando…' : 'Entrar a GELIA'}</span>
               <Icon className={submitting ? 'spin' : ''} name={submitting ? 'refresh' : 'arrow'} />
             </button>
+            {mostrarHuella && (
+              <button className="secondary-button passkey-button" disabled={passkeySubmitting || submitting} onClick={() => void handlePasskey()} type="button">
+                <Icon name="fingerprint" />
+                <span>{passkeySubmitting ? 'Esperando huella…' : 'Entrar con huella'}</span>
+              </button>
+            )}
           </form>
           <footer><Icon name="shield" /><span>La contraseña se valida en GELIA y no se guarda en este dispositivo.</span></footer>
         </div>

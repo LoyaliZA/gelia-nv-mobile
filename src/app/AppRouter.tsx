@@ -23,7 +23,7 @@ export function AppRouter() {
   }
 
   if (auth.status === 'guest') {
-    return <LoginView onLogin={auth.login} />
+    return <LoginView onLogin={auth.login} onLoginWithPasskey={auth.loginWithPasskey} />
   }
 
   return (

@@ -65,3 +65,13 @@ export interface MobileMeResponse {
   tema_visual: TemaVisual
   device: MobileDevice
 }
+
+export interface PasskeyCredentialSummary {
+  id: string
+  nickname: string | null
+  platform: string | null
+  transports: string[] | null
+  last_used_at: string | null
+  revocado_at: string | null
+  created_at: string | null
+}

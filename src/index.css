@@ -195,6 +195,15 @@ html.glass-active .bottom-navigation { background: color-mix(in srgb, var(--surf
 .profile-meta { margin-top: 1rem; padding: .85rem; display: flex; justify-content: space-between; gap: 1rem; border-radius: .9rem; background: var(--surface-soft); text-align: left; font-size: .72rem; }
 .profile-meta span { color: var(--muted); }
 .logout-button { width: 100%; display: flex; align-items: center; justify-content: center; gap: .6rem; border: 1px solid rgba(239,68,68,.2); color: #ef4444; background: rgba(239,68,68,.07); }
+.passkey-button { width: 100%; display: flex; align-items: center; justify-content: center; gap: .55rem; }
+.passkey-button svg { width: 1.1rem; height: 1.1rem; }
+.passkeys-card { text-align: left; display: grid; gap: .85rem; }
+.passkey-list { margin: 0; padding: 0; list-style: none; display: grid; gap: .65rem; }
+.passkey-list li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .75rem; border-radius: .9rem; background: var(--surface-soft); }
+.passkey-list strong { display: block; font-size: .78rem; }
+.passkey-list small { color: var(--muted); font-size: .62rem; text-transform: uppercase; letter-spacing: .06em; }
+.passkey-revoke { width: auto; min-height: 2.4rem; padding: 0 .8rem; }
+.passkey-success { margin: 0; color: #16a34a; font-size: .75rem; font-weight: 700; }
 
 .bottom-navigation { position: fixed; left: .8rem; right: .8rem; bottom: calc(.75rem + env(safe-area-inset-bottom, 0px)); height: 4.7rem; z-index: 60; padding: .4rem; display: grid; grid-template-columns: repeat(3,1fr); border: 1px solid var(--border); border-radius: 1.45rem; background: var(--surface); box-shadow: 0 16px 50px rgba(0,0,0,.2); backdrop-filter: blur(26px); }
 .bottom-navigation button { border: 0; border-radius: 1.05rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .22rem; color: var(--muted); background: transparent; font-size: .56rem; font-weight: 800; cursor: pointer; }

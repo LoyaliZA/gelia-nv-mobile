@@ -3,32 +3,29 @@ import { Capacitor } from '@capacitor/core'
 import { useEffect, useMemo, useState } from 'react'
 import type { PropsWithChildren } from 'react'
 import { ApiError } from '../../lib/api/apiClient'
-import { clearSession, readSession, writeSession } from '../../services/storage/sessionStorage'
+import { clearSession, hydrateStorage, readSession, writeSession } from '../../services/storage/sessionStorage'
 import { applyGeliaTheme, clearGeliaTheme } from '../../theme/applyGeliaTheme'
-import { fetchMobileMe, loginMobile, logoutMobile } from './auth.api'
+import { fetchMobileMe, loginMobile, loginWithPasskey as loginWithPasskeyApi, logoutMobile } from './auth.api'
 import { AuthContext } from './AuthContext'
 import type { AuthState } from './AuthContext'
 import type { LoginCredentials, MobileSession } from './auth.types'
 
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [state, setState] = useState<AuthState>(() => (
-    readSession() ? { status: 'booting' } : { status: 'guest' }
-  ))
+  const [state, setState] = useState<AuthState>({ status: 'booting' })
 
   useEffect(() => {
     let active = true
-    const stored = readSession()
 
-    if (!stored) {
-      return () => { active = false }
+    const applySession = (session: MobileSession) => {
+      writeSession(session)
+      applyGeliaTheme(session.temaVisual)
+      setState({ status: 'authenticated', session })
     }
 
     const refreshSession = (session: MobileSession) => fetchMobileMe(session)
       .then((freshSession) => {
         if (!active) return
-        writeSession(freshSession)
-        applyGeliaTheme(freshSession.temaVisual)
-        setState({ status: 'authenticated', session: freshSession })
+        applySession(freshSession)
       })
       .catch((error: unknown) => {
         if (!active) return
@@ -42,8 +39,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setState({ status: 'guest' })
       })
 
-    applyGeliaTheme(stored.temaVisual)
-    void refreshSession(stored)
+    void hydrateStorage().then(() => {
+      if (!active) return
+      const stored = readSession()
+      if (!stored) {
+        setState({ status: 'guest' })
+        return
+      }
+      applyGeliaTheme(stored.temaVisual)
+      void refreshSession(stored)
+    })
 
     const onVisible = () => {
       if (document.visibilityState !== 'visible') return
@@ -83,6 +88,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
     state,
     login: async (credentials: LoginCredentials) => {
       const session = await loginMobile(credentials)
+      writeSession(session)
+      applyGeliaTheme(session.temaVisual)
+      setState({ status: 'authenticated', session })
+    },
+    loginWithPasskey: async (login: string) => {
+      const session = await loginWithPasskeyApi(login)
       writeSession(session)
       applyGeliaTheme(session.temaVisual)
       setState({ status: 'authenticated', session })

@@ -1,6 +1,6 @@
 import type { ReactNode, SVGProps } from 'react'
 
-export type IconName = 'home' | 'users' | 'user' | 'menu' | 'search' | 'refresh' | 'logout' | 'close' | 'shield' | 'arrow' | 'wifi' | 'chevron'
+export type IconName = 'home' | 'users' | 'user' | 'menu' | 'search' | 'refresh' | 'logout' | 'close' | 'shield' | 'arrow' | 'wifi' | 'chevron' | 'fingerprint'
 
 const paths: Record<IconName, ReactNode> = {
   home: <><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></>,
@@ -15,6 +15,7 @@ const paths: Record<IconName, ReactNode> = {
   arrow: <path d="M5 12h14M13 6l6 6-6 6"/>,
   wifi: <><path d="M5 12.55a11 11 0 0 1 14 0M8.5 16a6 6 0 0 1 7 0"/><circle cx="12" cy="20" r="1"/></>,
   chevron: <path d="m9 18 6-6-6-6"/>,
+  fingerprint: <><path d="M12 11a1 1 0 0 0-1 1v1a1 1 0 0 0 2 0v-1a1 1 0 0 0-1-1Z"/><path d="M12 3a9 9 0 0 0-9 9c0 1.5.3 2.9.9 4.2"/><path d="M12 3a9 9 0 0 1 9 9c0 1.5-.3 2.9-.9 4.2"/><path d="M8.5 6.2A6 6 0 0 0 6 11v1"/><path d="M15.5 6.2A6 6 0 0 1 18 11v1"/><path d="M9 16.2A4 4 0 0 0 12 17a4 4 0 0 0 3-1.2"/></>,
 }
 
 interface IconProps extends SVGProps<SVGSVGElement> { name: IconName }
