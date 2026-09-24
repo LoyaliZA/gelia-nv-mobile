@@ -20,6 +20,8 @@ export interface GeliaUser {
   name: string
   username: string | null
   email: string | null
+  foto_perfil?: string | null
+  foto_perfil_url?: string | null
 }
 
 export interface MobileDevice {

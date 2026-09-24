@@ -11,7 +11,7 @@ Al iniciar una sesión, la app descarga en segundo plano el catálogo autorizado
 
 Los clientes se guardan en IndexedDB, separados por usuario y `scope_version`. La sincronización se reanuda cuando vuelve la conexión o la app regresa al primer plano. Los conflictos `scope_changed`, `cursor_expired`, `snapshot_expired` y `bootstrap_mismatch` reinician automáticamente el catálogo del alcance actual.
 
-Mientras el bootstrap está en curso, las búsquedas en línea usan `GET /clientes/{numero_cliente}` y recurren a IndexedDB si la consulta remota no está disponible. Una vez completada la descarga, las búsquedas se resuelven localmente.
+Las búsquedas por número consultan primero IndexedDB y, si no hay coincidencia local, llaman a `GET /mobile/clientes/{numero_cliente}` cuando hay conexión (incluso si el catálogo aún no se descargó). La búsqueda por nombre usa `GET /mobile/clientes?q=` con paginación de 10 resultados por página; sin conexión, la búsqueda por nombre recurre al catálogo local si está disponible.
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

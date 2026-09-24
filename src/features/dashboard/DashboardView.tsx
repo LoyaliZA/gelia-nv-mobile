@@ -1,32 +1,43 @@
-import { Icon } from '../../components/ui/Icon'
-import { useClienteSync } from '../clientes/useClienteSync'
+import { Layers, Search } from 'lucide-react'
+import type { AppRoute } from '../../app/routes'
+import { DashboardMobileView } from '../../components/dashboard/DashboardMobileView'
+import { DashboardModuleCard } from '../../components/dashboard/DashboardModuleCard'
+import { DashboardPanel } from '../../components/dashboard/DashboardPanel'
 
-interface DashboardViewProps { onOpenClients: () => void }
+interface DashboardViewProps {
+  onNavigate: (route: AppRoute) => void
+}
 
-export function DashboardView({ onOpenClients }: DashboardViewProps) {
-  const { state, syncNow } = useClienteSync()
-  const syncing = state.phase === 'bootstrapping' || state.phase === 'incremental'
-  const status = state.phase === 'ready' ? 'Listo' : state.phase === 'offline' ? 'Offline' : state.phase === 'error' ? 'Reintentar' : 'Sincronizando'
-  const detail = state.phase === 'bootstrapping'
-    ? `${state.downloaded}${state.total !== null ? ` de ${state.total}` : ''} clientes descargados`
-    : state.phase === 'incremental'
-      ? 'Aplicando cambios recientes…'
-      : state.phase === 'ready'
-        ? `${state.downloaded} clientes disponibles sin conexión.`
-        : state.error || 'La sincronización continuará al recuperar conexión.'
+export function DashboardView({ onNavigate }: DashboardViewProps) {
+  const sections = [
+    {
+      id: 'operaciones',
+      content: (
+        <DashboardPanel icon={Layers} title="Funciones Operativas_">
+          <div className="dashboard-panel-cards__grid dashboard-panel-cards__grid--single">
+            <DashboardModuleCard
+              borderStyle={{ borderColor: 'var(--color-primario)' }}
+              icon={Search}
+              iconStyle={{ color: 'var(--color-primario)' }}
+              iconWrapStyle={{ backgroundColor: 'color-mix(in srgb, var(--color-primario) 15%, transparent)' }}
+              onClick={() => onNavigate('clientes')}
+              subtitle="Verifica identidad y datos por número de cliente."
+              title="Consultar Clientes"
+            />
+          </div>
+        </DashboardPanel>
+      ),
+    },
+  ]
+
   return (
     <div className="page-stack">
-      <header className="page-heading"><span className="eyebrow">PANEL MÓVIL_</span><h1>Operación en tienda</h1><p>Accede rápidamente a las herramientas disponibles para tu usuario.</p></header>
-      <button className="feature-card" onClick={onOpenClients}>
-        <span className="feature-icon"><Icon name="users" /></span>
-        <span className="feature-copy"><strong>Consultar cliente</strong><small>Verifica identidad y datos por número de cliente.</small></span>
-        <Icon className="feature-arrow" name="chevron" />
-      </button>
-      <button className="sync-card" disabled={syncing} onClick={() => { void syncNow() }} type="button">
-        <div className={syncing ? 'sync-icon--active' : ''}><Icon name="refresh" /></div>
-        <span><strong>Sincronización</strong><small>{detail}</small></span>
-        <b className={`sync-status sync-status--${state.phase}`}>{status}</b>
-      </button>
+      <header className="page-heading">
+        <span className="eyebrow">PANEL MÓVIL_</span>
+        <h1>Panel Principal</h1>
+        <p>Accede a las herramientas operativas disponibles en la app móvil.</p>
+      </header>
+      <DashboardMobileView sections={sections} />
     </div>
   )
 }

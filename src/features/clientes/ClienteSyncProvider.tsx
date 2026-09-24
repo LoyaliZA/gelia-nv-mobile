@@ -4,6 +4,7 @@ import { ApiError } from '../../lib/api/apiClient'
 import type { MobileSession } from '../auth/auth.types'
 import {
   buscarClienteRemoto,
+  buscarClientesRemoto,
   completarBootstrap,
   descargarCambios,
   descargarPaginaBootstrap,
@@ -13,6 +14,7 @@ import {
 import { ClienteSyncContext } from './ClienteSyncContext'
 import {
   buscarClienteLocal,
+  buscarClientesLocal,
   eliminarClientePorId,
   guardarClientes,
   guardarSyncMetadata,
@@ -193,20 +195,48 @@ export function ClienteSyncProvider({ children, session }: Props) {
   }, [syncNow])
 
   const findCliente = useCallback(async (numeroCliente: string) => {
-    const catalogPending = state.phase !== 'ready'
-    if (catalogPending) {
+    const local = await buscarClienteLocal(scopeKey, numeroCliente)
+    if (local) return { cliente: local, source: 'local' as const }
+
+    if (!navigator.onLine) {
+      return { cliente: null, source: 'local' as const }
+    }
+
+    try {
+      const cliente = await buscarClienteRemoto(session, numeroCliente)
+      setOnline(true)
+      await guardarClientes(scopeKey, [cliente])
+      return { cliente, source: 'api' as const }
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) return { cliente: null, source: 'api' as const }
+      if (error instanceof ApiError && error.status === 0) setOnline(false)
+      return { cliente: null, source: 'local' as const }
+    }
+  }, [scopeKey, session])
+
+  const searchClientes = useCallback(async (termino: string, page = 1) => {
+    const normalized = termino.trim()
+    const emptyMeta = { current_page: 1, last_page: 1, per_page: 10, total: 0 }
+    if (!normalized) return { data: [], meta: emptyMeta, source: 'local' as const }
+
+    if (navigator.onLine) {
       try {
-        const cliente = await buscarClienteRemoto(session, numeroCliente)
+        const pageResult = await buscarClientesRemoto(session, { q: normalized, page, perPage: 10 })
         setOnline(true)
-        return { cliente, source: 'api' as const }
+        if (pageResult.data.length) await guardarClientes(scopeKey, pageResult.data)
+        return { ...pageResult, source: 'api' as const }
       } catch (error) {
-        if (error instanceof ApiError && error.status === 404) return { cliente: null, source: 'api' as const }
         if (error instanceof ApiError && error.status === 0) setOnline(false)
       }
     }
-    return { cliente: await buscarClienteLocal(scopeKey, numeroCliente), source: 'local' as const }
-  }, [scopeKey, session, state.phase])
 
-  const value = useMemo(() => ({ state, online, findCliente, syncNow }), [findCliente, online, state, syncNow])
+    const localPage = await buscarClientesLocal(scopeKey, normalized, page, 10)
+    return { ...localPage, source: 'local' as const }
+  }, [scopeKey, session])
+
+  const value = useMemo(
+    () => ({ state, online, findCliente, searchClientes, syncNow }),
+    [findCliente, online, searchClientes, state, syncNow],
+  )
   return <ClienteSyncContext.Provider value={value}>{children}</ClienteSyncContext.Provider>
 }

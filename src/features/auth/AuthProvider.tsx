@@ -86,6 +86,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const value = useMemo(() => ({
     state,
+    updateSession: (session: MobileSession) => {
+      writeSession(session)
+      applyGeliaTheme(session.temaVisual)
+      setState({ status: 'authenticated', session })
+    },
     login: async (credentials: LoginCredentials) => {
       const session = await loginMobile(credentials)
       writeSession(session)

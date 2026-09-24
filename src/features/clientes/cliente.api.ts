@@ -26,6 +26,18 @@ export interface ChangesPage {
   hasMore: boolean
 }
 
+export interface ClienteSearchMeta {
+  current_page: number
+  last_page: number
+  per_page: number
+  total: number
+}
+
+export interface ClienteSearchPage {
+  data: ClienteMovil[]
+  meta: ClienteSearchMeta
+}
+
 function auth(session: MobileSession) {
   return { token: session.accessToken, scopeVersion: session.scopeVersion }
 }
@@ -118,9 +130,32 @@ export async function descargarCambios(session: MobileSession, cursor: number): 
 }
 
 export async function buscarClienteRemoto(session: MobileSession, numeroCliente: string) {
-  const payload = record(await apiRequest<unknown>(`/clientes/${encodeURIComponent(numeroCliente)}`, auth(session)))
+  const payload = record(await apiRequest<unknown>(`/mobile/clientes/${encodeURIComponent(numeroCliente)}`, auth(session)))
   const cliente = record(payload.data ?? payload.cliente ?? payload)
   return cliente as unknown as ClienteMovil
+}
+
+export async function buscarClientesRemoto(
+  session: MobileSession,
+  { q, page = 1, perPage = 10 }: { q: string; page?: number; perPage?: number },
+): Promise<ClienteSearchPage> {
+  const query = new URLSearchParams({
+    q,
+    page: String(page),
+    per_page: String(perPage),
+  })
+  const payload = record(await apiRequest<unknown>(`/mobile/clientes?${query}`, auth(session)))
+  const data = list<ClienteMovil>(payload, ['data', 'clientes', 'items'])
+  const meta = record(payload.meta ?? {})
+  return {
+    data,
+    meta: {
+      current_page: numberValue(meta, ['current_page'], page),
+      last_page: numberValue(meta, ['last_page'], 1),
+      per_page: numberValue(meta, ['per_page'], perPage),
+      total: numberValue(meta, ['total'], data.length),
+    },
+  }
 }
 
 export function requiereNuevoBootstrap(error: unknown) {

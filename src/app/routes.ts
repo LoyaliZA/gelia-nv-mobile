@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
 
-export type AppRoute = 'inicio' | 'clientes' | 'perfil'
+export type AppRoute = 'inicio' | 'clientes' | 'perfil' | 'preferencias'
 
 const ROUTES: Record<string, AppRoute> = {
   '#/inicio': 'inicio',
   '#/clientes': 'clientes',
   '#/perfil': 'perfil',
+  '#/preferencias': 'preferencias',
 }
 
 function readRoute(): AppRoute {
-  return ROUTES[window.location.hash] ?? 'clientes'
+  return ROUTES[window.location.hash] ?? 'inicio'
 }
 
 export function useAppRoute() {

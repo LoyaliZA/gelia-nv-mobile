@@ -11,6 +11,7 @@ export interface AuthContextValue {
   login: (credentials: LoginCredentials) => Promise<void>
   loginWithPasskey: (login: string) => Promise<void>
   logout: () => Promise<void>
+  updateSession: (session: MobileSession) => void
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

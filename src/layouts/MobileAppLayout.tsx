@@ -1,35 +1,98 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import type { PropsWithChildren } from 'react'
 import type { AppRoute } from '../app/routes'
-import { BottomNavigation } from '../components/navigation/BottomNavigation'
-import { ProDrawer } from '../components/navigation/ProDrawer'
-import { Icon } from '../components/ui/Icon'
-import type { GeliaUser } from '../features/auth/auth.types'
-import { useClienteSync } from '../features/clientes/useClienteSync'
+import { MobileAccessSheet } from '../components/navigation/MobileAccessSheet'
+import { MobileBottomBar } from '../components/navigation/MobileBottomBar'
+import { MobileProfileSheet } from '../components/navigation/MobileProfileSheet'
+import type { GeliaUser, TemaVisual } from '../features/auth/auth.types'
+import { useThemeToggle } from '../hooks/useThemeToggle'
 
 interface MobileAppLayoutProps extends PropsWithChildren {
   activeRoute: AppRoute
   onNavigate: (route: AppRoute) => void
   onLogout: () => Promise<void>
-  permissions: string[]
+  temaVisual: TemaVisual
   user: GeliaUser
 }
 
-const titles: Record<AppRoute, string> = { inicio: 'Inicio', clientes: 'Clientes', perfil: 'Mi perfil' }
+export function MobileAppLayout({
+  activeRoute,
+  children,
+  onNavigate,
+  onLogout,
+  temaVisual,
+  user,
+}: MobileAppLayoutProps) {
+  const [accessOpen, setAccessOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const { isDarkMode, toggleTheme } = useThemeToggle(temaVisual)
 
-export function MobileAppLayout({ activeRoute, children, onNavigate, onLogout, permissions, user }: MobileAppLayoutProps) {
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const { online } = useClienteSync()
+  const closeSheets = useCallback(() => {
+    setAccessOpen(false)
+    setProfileOpen(false)
+  }, [])
+
+  const toggleAccess = useCallback(() => {
+    setProfileOpen(false)
+    setAccessOpen((prev) => !prev)
+  }, [])
+
+  const toggleProfile = useCallback(() => {
+    setAccessOpen(false)
+    setProfileOpen((prev) => !prev)
+  }, [])
+
+  const handleBack = useCallback(() => {
+    if (accessOpen || profileOpen) {
+      closeSheets()
+      return
+    }
+    if (window.history.length > 1) {
+      window.history.back()
+      return
+    }
+    if (activeRoute !== 'inicio') {
+      onNavigate('inicio')
+    }
+  }, [accessOpen, activeRoute, closeSheets, onNavigate, profileOpen])
+
+  const sheetOpen = accessOpen || profileOpen
+
   return (
-    <div className="app-shell">
-      <header className="mobile-header">
-        <button aria-label="Abrir menú" className="icon-button" onClick={() => setDrawerOpen(true)}><Icon name="menu" /></button>
-        <div className="mobile-header-title"><span>{titles[activeRoute]}</span><small>GELIA-NV</small></div>
-        <div className={`online-indicator${online ? '' : ' online-indicator--offline'}`} title={online ? 'Con conexión' : 'Sin conexión'}><span /> {online ? 'En línea' : 'Offline'}</div>
-      </header>
-      <ProDrawer activeRoute={activeRoute} onClose={() => setDrawerOpen(false)} onLogout={onLogout} onNavigate={onNavigate} open={drawerOpen} permissions={permissions} user={user} />
+    <div className="app-shell" data-sidebar-layout="mobile-bottom">
       <main className="app-content">{children}</main>
-      <BottomNavigation activeRoute={activeRoute} onNavigate={onNavigate} />
+
+      {sheetOpen && (
+        <button
+          aria-label="Cerrar menú"
+          className="mobile-sheet-backdrop mobile-sheet-backdrop--visible"
+          onClick={closeSheets}
+          type="button"
+        />
+      )}
+
+      <MobileAccessSheet
+        activeRoute={activeRoute}
+        onClose={closeSheets}
+        onNavigate={onNavigate}
+        open={accessOpen}
+      />
+      <MobileProfileSheet
+        onClose={closeSheets}
+        onLogout={onLogout}
+        onNavigate={onNavigate}
+        open={profileOpen}
+      />
+
+      <MobileBottomBar
+        accessOpen={accessOpen}
+        isDarkMode={isDarkMode}
+        onBack={handleBack}
+        onToggleAccess={toggleAccess}
+        onToggleProfile={toggleProfile}
+        onToggleTheme={toggleTheme}
+        user={user}
+      />
     </div>
   )
 }

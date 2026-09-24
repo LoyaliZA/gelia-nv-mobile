@@ -1,3 +1,4 @@
+import type { ClienteSearchPage } from './cliente.api'
 import type { ClienteMovil } from './cliente.types'
 
 const DB_NAME = 'gelia-mobile'
@@ -61,6 +62,19 @@ function storedCliente(scopeKey: string, cliente: ClienteMovil): ClienteStored {
   return { ...cliente, numero_cliente: numero, storage_key: `${scopeKey}:${numero}`, scope_key: scopeKey }
 }
 
+function fromStored(stored: ClienteStored): ClienteMovil {
+  const cliente: ClienteMovil = { ...stored }
+  delete cliente.storage_key
+  delete cliente.scope_key
+  return cliente
+}
+
+function matchesTermino(cliente: ClienteMovil, termino: string) {
+  const needle = termino.toLowerCase()
+  const fields = [cliente.numero_cliente, cliente.nombre, cliente.nombre_razon_social]
+  return fields.some((field) => field && String(field).toLowerCase().includes(needle))
+}
+
 export async function buscarClienteLocal(scopeKey: string, numeroCliente: string): Promise<ClienteMovil | null> {
   const database = await openDatabase()
   const transaction = database.transaction(CLIENTES_STORE, 'readonly')
@@ -69,10 +83,40 @@ export async function buscarClienteLocal(scopeKey: string, numeroCliente: string
   ) as ClienteStored | undefined
   database.close()
   if (!result) return null
-  const cliente: ClienteMovil = { ...result }
-  delete cliente.storage_key
-  delete cliente.scope_key
-  return cliente
+  return fromStored(result)
+}
+
+export async function listarClientesPorScope(scopeKey: string): Promise<ClienteMovil[]> {
+  const database = await openDatabase()
+  const transaction = database.transaction(CLIENTES_STORE, 'readonly')
+  const results = await requestResult(
+    transaction.objectStore(CLIENTES_STORE).index('by_scope').getAll(scopeKey),
+  ) as ClienteStored[]
+  database.close()
+  return results.map(fromStored)
+}
+
+export async function buscarClientesLocal(
+  scopeKey: string,
+  termino: string,
+  page = 1,
+  perPage = 10,
+): Promise<ClienteSearchPage> {
+  const normalized = termino.trim()
+  const filtered = (await listarClientesPorScope(scopeKey)).filter((cliente) => matchesTermino(cliente, normalized))
+  const total = filtered.length
+  const lastPage = Math.max(1, Math.ceil(total / perPage))
+  const start = (page - 1) * perPage
+
+  return {
+    data: filtered.slice(start, start + perPage),
+    meta: {
+      current_page: page,
+      last_page: lastPage,
+      per_page: perPage,
+      total,
+    },
+  }
 }
 
 export async function guardarClientes(scopeKey: string, clientes: ClienteMovil[]) {

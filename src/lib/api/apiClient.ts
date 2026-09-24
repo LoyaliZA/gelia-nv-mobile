@@ -169,3 +169,60 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
 
   throw lastError
 }
+
+interface ApiFormRequestOptions {
+  token?: string
+  scopeVersion?: string
+  connectTimeoutMs?: number
+  readTimeoutMs?: number
+}
+
+async function executeFormRequest<T>(
+  path: string,
+  formData: FormData,
+  options: ApiFormRequestOptions,
+): Promise<T> {
+  const headers = new Headers()
+  headers.set('Accept', 'application/json')
+  if (options.token) headers.set('Authorization', `Bearer ${options.token}`)
+  if (options.scopeVersion) headers.set('X-Mobile-Scope-Version', options.scopeVersion)
+
+  const url = `${apiBaseUrl()}${path}`
+  const timeoutMs = (options.connectTimeoutMs ?? API_CONNECT_TIMEOUT_MS)
+    + (options.readTimeoutMs ?? API_READ_TIMEOUT_MS)
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData,
+      signal: controller.signal,
+    })
+    window.clearTimeout(timeoutId)
+
+    const contentType = response.headers.get('content-type') ?? ''
+    const payload = contentType.includes('application/json')
+      ? await response.json().catch(() => null)
+      : await response.text().catch(() => '')
+
+    if (!response.ok) {
+      throw new ApiError(errorMessage(payload, response.status), response.status, payload)
+    }
+
+    return payload as T
+  } catch (error) {
+    window.clearTimeout(timeoutId)
+    if (error instanceof ApiError) throw error
+    throw new ApiError(connectionErrorMessage(error), 0)
+  }
+}
+
+export async function apiFormRequest<T>(
+  path: string,
+  formData: FormData,
+  options: ApiFormRequestOptions = {},
+): Promise<T> {
+  return executeFormRequest<T>(path, formData, options)
+}
