@@ -16,19 +16,19 @@ export function ClienteSyncStatus() {
   const refreshTimestamps = useRef<number[]>([])
   const [cooldownUntil, setCooldownUntil] = useState<number | null>(null)
   const [rateLimitMessage, setRateLimitMessage] = useState<string | null>(null)
-  const inCooldown = cooldownUntil !== null && Date.now() < cooldownUntil
+  const [now, setNow] = useState(() => Date.now())
+  const inCooldown = cooldownUntil !== null && now < cooldownUntil
+
+  useEffect(() => {
+    if (state.phase !== 'retrying' || state.retryAt === null) return undefined
+    const timer = window.setInterval(() => setNow(Date.now()), 1_000)
+    return () => window.clearInterval(timer)
+  }, [state.phase, state.retryAt])
 
   useEffect(() => {
     if (!cooldownUntil) return undefined
 
-    const remaining = cooldownUntil - Date.now()
-    if (remaining <= 0) {
-      setCooldownUntil(null)
-      setRateLimitMessage(null)
-      refreshTimestamps.current = []
-      return undefined
-    }
-
+    const remaining = Math.max(0, cooldownUntil - Date.now())
     const timer = window.setTimeout(() => {
       setCooldownUntil(null)
       setRateLimitMessage(null)
@@ -39,47 +39,54 @@ export function ClienteSyncStatus() {
   }, [cooldownUntil])
 
   const syncing = state.phase === 'bootstrapping' || state.phase === 'incremental'
+  const retrySeconds = state.phase === 'retrying' && state.retryAt !== null
+    ? Math.max(0, Math.ceil((state.retryAt - now) / 1000))
+    : null
   const status = state.phase === 'ready'
     ? 'Listo'
     : state.phase === 'offline'
       ? 'Offline'
-      : state.phase === 'error'
-        ? 'Reintentar'
-        : 'Sincronizando'
+      : state.phase === 'retrying'
+        ? 'Reintentando'
+        : state.phase === 'error'
+          ? 'Reintentar'
+          : 'Sincronizando'
 
   const detail = rateLimitMessage
     ?? (state.phase === 'bootstrapping'
       ? `${state.downloaded}${state.total !== null ? ` de ${state.total}` : ''} clientes descargados`
       : state.phase === 'incremental'
         ? 'Aplicando cambios recientes…'
-        : state.phase === 'ready'
-          ? `${state.downloaded} clientes disponibles sin conexión.`
-          : state.error || 'La sincronización continuará al recuperar conexión.')
+        : state.phase === 'retrying'
+          ? `Reintentando conexión en ${retrySeconds ?? 0} s…`
+          : state.phase === 'ready'
+            ? `${state.downloaded} clientes disponibles sin conexión.`
+            : state.error || 'La sincronización continuará al recuperar conexión.')
 
   const handleRefresh = () => {
-    const now = Date.now()
+    const clickedAt = Date.now()
 
-    if (cooldownUntil !== null && now < cooldownUntil) {
+    if (cooldownUntil !== null && clickedAt < cooldownUntil) {
       setRateLimitMessage(RATE_LIMIT_MESSAGE)
       return
     }
 
-    if (cooldownUntil !== null && now >= cooldownUntil) {
+    if (cooldownUntil !== null && clickedAt >= cooldownUntil) {
       setCooldownUntil(null)
       setRateLimitMessage(null)
       refreshTimestamps.current = []
     }
 
-    const recent = pruneTimestamps(refreshTimestamps.current, now)
+    const recent = pruneTimestamps(refreshTimestamps.current, clickedAt)
 
     if (recent.length >= REFRESH_LIMIT) {
-      setCooldownUntil(now + COOLDOWN_MS)
+      setCooldownUntil(clickedAt + COOLDOWN_MS)
       setRateLimitMessage(RATE_LIMIT_MESSAGE)
       return
     }
 
     setRateLimitMessage(null)
-    refreshTimestamps.current = [...recent, now]
+    refreshTimestamps.current = [...recent, clickedAt]
     void syncNow()
   }
 

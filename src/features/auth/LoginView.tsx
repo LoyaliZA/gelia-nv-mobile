@@ -3,7 +3,8 @@ import type { FormEvent } from 'react'
 import { GeliaLogo } from '../../components/ui/GeliaLogo'
 import { Icon } from '../../components/ui/Icon'
 import { ApiError } from '../../lib/api/apiClient'
-import { passkeyLoginOptions, webAuthnSoportado } from './auth.api'
+import { passkeyLoginOptions } from './auth.api'
+import { usePasskeyDisponible } from './usePasskeyDisponible'
 import type { LoginCredentials } from './auth.types'
 
 interface LoginViewProps {
@@ -18,9 +19,10 @@ export function LoginView({ onLogin, onLoginWithPasskey }: LoginViewProps) {
   const [submitting, setSubmitting] = useState(false)
   const [passkeySubmitting, setPasskeySubmitting] = useState(false)
   const [mostrarHuella, setMostrarHuella] = useState(false)
+  const { disponible: passkeyDisponible, evaluando: evaluandoPasskey } = usePasskeyDisponible()
 
   useEffect(() => {
-    if (!webAuthnSoportado() || login.trim().length < 3) {
+    if (!passkeyDisponible || evaluandoPasskey || login.trim().length < 3) {
       setMostrarHuella(false)
       return
     }
@@ -30,7 +32,7 @@ export function LoginView({ onLogin, onLoginWithPasskey }: LoginViewProps) {
         .catch(() => setMostrarHuella(false))
     }, 400)
     return () => window.clearTimeout(timeout)
-  }, [login])
+  }, [evaluandoPasskey, login, passkeyDisponible])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()

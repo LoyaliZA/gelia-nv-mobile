@@ -1,4 +1,5 @@
 import type { ClienteSearchPage } from './cliente.api'
+import { normalizeNumeroCliente } from './cliente.numero'
 import type { ClienteMovil } from './cliente.types'
 
 const DB_NAME = 'gelia-mobile'
@@ -20,6 +21,7 @@ export interface ClienteSyncMetadata {
   cursor: number | null
   complete: boolean
   lastSyncedAt: string | null
+  lastReconciledTotal: number | null
 }
 
 function openDatabase(): Promise<IDBDatabase> {
@@ -58,7 +60,7 @@ function transactionDone(transaction: IDBTransaction): Promise<void> {
 }
 
 function storedCliente(scopeKey: string, cliente: ClienteMovil): ClienteStored {
-  const numero = String(cliente.numero_cliente)
+  const numero = normalizeNumeroCliente(String(cliente.numero_cliente ?? ''))
   return { ...cliente, numero_cliente: numero, storage_key: `${scopeKey}:${numero}`, scope_key: scopeKey }
 }
 
@@ -76,14 +78,24 @@ function matchesTermino(cliente: ClienteMovil, termino: string) {
 }
 
 export async function buscarClienteLocal(scopeKey: string, numeroCliente: string): Promise<ClienteMovil | null> {
+  const numero = normalizeNumeroCliente(numeroCliente)
+  if (!numero) return null
   const database = await openDatabase()
   const transaction = database.transaction(CLIENTES_STORE, 'readonly')
   const result = await requestResult(
-    transaction.objectStore(CLIENTES_STORE).index('by_scope_number').get([scopeKey, numeroCliente]),
+    transaction.objectStore(CLIENTES_STORE).index('by_scope_number').get([scopeKey, numero]),
   ) as ClienteStored | undefined
   database.close()
   if (!result) return null
   return fromStored(result)
+}
+
+export async function contarClientesPorScope(scopeKey: string): Promise<number> {
+  const database = await openDatabase()
+  const transaction = database.transaction(CLIENTES_STORE, 'readonly')
+  const count = await requestResult(transaction.objectStore(CLIENTES_STORE).index('by_scope').count(scopeKey))
+  database.close()
+  return count
 }
 
 export async function listarClientesPorScope(scopeKey: string): Promise<ClienteMovil[]> {

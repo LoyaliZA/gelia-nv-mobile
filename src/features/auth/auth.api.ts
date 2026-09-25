@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core'
+import { CapacitorPasskey } from '@capgo/capacitor-passkey'
 import {
   startAuthentication,
   startRegistration,
@@ -59,6 +60,19 @@ function hexToBase64Url(hex: string) {
 
 export function webAuthnSoportado() {
   return typeof window !== 'undefined' && browserSupportsWebAuthn()
+}
+
+export async function webAuthnSoportadoAsync() {
+  if (typeof window === 'undefined') return false
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const soporte = await CapacitorPasskey.isSupported()
+      return soporte.available
+    } catch {
+      return webAuthnSoportado()
+    }
+  }
+  return webAuthnSoportado()
 }
 
 export async function loginMobile(credentials: LoginCredentials): Promise<MobileSession> {

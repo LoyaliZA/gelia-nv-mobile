@@ -14,7 +14,7 @@ export interface ClienteMovil {
   [key: string]: unknown
 }
 
-export type ClienteSyncPhase = 'idle' | 'bootstrapping' | 'incremental' | 'ready' | 'offline' | 'error'
+export type ClienteSyncPhase = 'idle' | 'bootstrapping' | 'incremental' | 'ready' | 'offline' | 'error' | 'retrying'
 
 export interface ClienteSyncState {
   phase: ClienteSyncPhase
@@ -22,4 +22,5 @@ export interface ClienteSyncState {
   total: number | null
   lastSyncedAt: string | null
   error: string | null
+  retryAt: number | null
 }
