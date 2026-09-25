@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Icon } from '../ui/Icon'
 import { ApiError } from '../../lib/api/apiClient'
-import { listPasskeys, registerPasskey, revokePasskey, webAuthnSoportado } from '../../features/auth/auth.api'
+import { listPasskeys, registerPasskey, revokePasskey } from '../../features/auth/auth.api'
+import { MENSAJE_PASSKEY_NO_DISPONIBLE, usePasskeyDisponible } from '../../features/auth/usePasskeyDisponible'
 import type { MobileSession, PasskeyCredentialSummary } from '../../features/auth/auth.types'
 
 interface PasskeysPanelProps {
@@ -21,7 +22,7 @@ export function PasskeysPanel({ session }: PasskeysPanelProps) {
   const [mensaje, setMensaje] = useState('')
   const [error, setError] = useState('')
   const [procesando, setProcesando] = useState(false)
-  const soportado = webAuthnSoportado()
+  const { disponible: soportado, evaluando: evaluandoSoporte } = usePasskeyDisponible()
 
   useEffect(() => {
     void listPasskeys(session)
@@ -62,13 +63,15 @@ export function PasskeysPanel({ session }: PasskeysPanelProps) {
     <section className="profile-card passkeys-card">
       <h2>Registros de acceso</h2>
       <p>Administra las huellas o passkeys autorizadas para entrar a GELIA desde este usuario.</p>
-      {soportado ? (
+      {evaluandoSoporte ? (
+        <p className="passkey-success">Comprobando soporte de huella en este dispositivo…</p>
+      ) : soportado ? (
         <button className="secondary-button passkey-button" disabled={procesando} onClick={() => void registrar()} type="button">
           <Icon name="fingerprint" />
           <span>{procesando ? 'Esperando huella…' : 'Registrar huella en este dispositivo'}</span>
         </button>
       ) : (
-        <p>Este dispositivo no expone WebAuthn. El acceso sigue siendo con usuario y contraseña.</p>
+        <p>{MENSAJE_PASSKEY_NO_DISPONIBLE}</p>
       )}
       {error && <div className="form-error" role="alert">{error}</div>}
       {mensaje && <p className="passkey-success">{mensaje}</p>}

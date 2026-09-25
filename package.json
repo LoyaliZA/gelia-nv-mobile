@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "android:signing-fingerprint": "bash scripts/android-signing-fingerprint.sh"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",
@@ -15,6 +16,7 @@
     "@capacitor/core": "^8.5.2",
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.2",
+    "@capgo/capacitor-passkey": "^8.5.2",
     "@simplewebauthn/browser": "^14.0.0",
     "lucide-react": "^1.47.0",
     "react": "^19.2.8",

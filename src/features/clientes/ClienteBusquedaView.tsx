@@ -3,18 +3,19 @@ import type { FormEvent } from 'react'
 import { Icon } from '../../components/ui/Icon'
 import { ClienteSyncStatus } from './ClienteSyncStatus'
 import type { ClienteSearchMeta } from './ClienteSyncContext'
+import { normalizeNumeroCliente } from './cliente.numero'
 import type { ClienteMovil } from './cliente.types'
 import { useClienteSync } from './useClienteSync'
 
 const MIN_NAME_LENGTH = 2
 
-function isNumberLookup(term: string) {
-  return /^\d+$/.test(term)
-}
+type LookupMode = 'number' | 'name'
 
 export function ClienteBusquedaView() {
-  const [query, setQuery] = useState('')
-  const [mode, setMode] = useState<'number' | 'name' | null>(null)
+  const [lookupMode, setLookupMode] = useState<LookupMode>('number')
+  const [numberQuery, setNumberQuery] = useState('')
+  const [nameQuery, setNameQuery] = useState('')
+  const [mode, setMode] = useState<LookupMode | null>(null)
   const [results, setResults] = useState<ClienteMovil[]>([])
   const [meta, setMeta] = useState<ClienteSearchMeta | null>(null)
   const [searched, setSearched] = useState(false)
@@ -25,8 +26,7 @@ export function ClienteBusquedaView() {
   const [validationError, setValidationError] = useState<string | null>(null)
   const { findCliente, searchClientes, online, state } = useClienteSync()
 
-  const reset = () => {
-    setQuery('')
+  const clearResults = () => {
     setMode(null)
     setResults([])
     setMeta(null)
@@ -36,33 +36,50 @@ export function ClienteBusquedaView() {
     setValidationError(null)
   }
 
+  const switchMode = (next: LookupMode) => {
+    setLookupMode(next)
+    clearResults()
+  }
+
+  const reset = () => {
+    setNumberQuery('')
+    setNameQuery('')
+    clearResults()
+  }
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const trimmed = query.trim()
-    if (!trimmed) return
-
     setValidationError(null)
     setCliente(null)
     setResults([])
     setMeta(null)
-    setLoading(true)
 
-    try {
-      if (isNumberLookup(trimmed)) {
+    if (lookupMode === 'number') {
+      const numero = normalizeNumeroCliente(numberQuery)
+      if (!numero) return
+      setLoading(true)
+      try {
         setMode('number')
-        const result = await findCliente(trimmed)
+        const result = await findCliente(numero)
         setCliente(result.cliente)
         setSource(result.source)
         setSearched(true)
-        return
+      } finally {
+        setLoading(false)
       }
+      return
+    }
 
-      if (trimmed.length < MIN_NAME_LENGTH) {
-        setValidationError(`Ingresa al menos ${MIN_NAME_LENGTH} caracteres para buscar por nombre.`)
-        setSearched(false)
-        return
-      }
+    const trimmed = nameQuery.trim()
+    if (!trimmed) return
+    if (trimmed.length < MIN_NAME_LENGTH) {
+      setValidationError(`Ingresa al menos ${MIN_NAME_LENGTH} caracteres para buscar por nombre.`)
+      setSearched(false)
+      return
+    }
 
+    setLoading(true)
+    try {
       setMode('name')
       const pageResult = await searchClientes(trimmed, 1)
       setResults(pageResult.data)
@@ -78,7 +95,7 @@ export function ClienteBusquedaView() {
     if (!meta || meta.current_page >= meta.last_page || loadingMore) return
     setLoadingMore(true)
     try {
-      const pageResult = await searchClientes(query.trim(), meta.current_page + 1)
+      const pageResult = await searchClientes(nameQuery.trim(), meta.current_page + 1)
       setResults((current) => [...current, ...pageResult.data])
       setMeta(pageResult.meta)
       setSource(pageResult.source)
@@ -96,7 +113,9 @@ export function ClienteBusquedaView() {
   }
 
   const catalogReady = state.phase === 'ready' || state.downloaded > 0
-  const canSubmit = query.trim().length > 0 && !loading
+  const canSubmit = lookupMode === 'number'
+    ? numberQuery.length > 0 && !loading
+    : nameQuery.trim().length > 0 && !loading
   const hasMoreResults = meta !== null && meta.current_page < meta.last_page
 
   return (
@@ -104,28 +123,70 @@ export function ClienteBusquedaView() {
       <header className="page-heading page-heading--surface">
         <span className="eyebrow">OPERACIONES_</span>
         <h1>Consultar Clientes</h1>
-        <p>Busca por número o nombre para corroborar la información del cliente autorizado.</p>
+        <p>Busca por número o por nombre para corroborar la información del cliente autorizado.</p>
         <ClienteSyncStatus />
       </header>
 
       <section className="lookup-card">
+        <div className="lookup-mode" role="tablist" aria-label="Tipo de búsqueda">
+          <button
+            aria-selected={lookupMode === 'number'}
+            onClick={() => switchMode('number')}
+            role="tab"
+            type="button"
+          >
+            Por número
+          </button>
+          <button
+            aria-selected={lookupMode === 'name'}
+            onClick={() => switchMode('name')}
+            role="tab"
+            type="button"
+          >
+            Por nombre
+          </button>
+        </div>
         <form onSubmit={handleSubmit}>
-          <label htmlFor="cliente-busqueda">Número o nombre de cliente</label>
+          {lookupMode === 'number' ? (
+            <label htmlFor="cliente-numero">Número de cliente</label>
+          ) : (
+            <label htmlFor="cliente-nombre">Nombre de cliente</label>
+          )}
           <div className="lookup-input-row">
             <div className="lookup-input-wrap lookup-input-wrap--search">
               <span><Icon name="search" /></span>
-              <input
-                autoComplete="off"
-                autoFocus
-                id="cliente-busqueda"
-                onChange={(event) => {
-                  setQuery(event.target.value)
-                  setSearched(false)
-                  setValidationError(null)
-                }}
-                placeholder="Ej. 10045 o Farmacia Central"
-                value={query}
-              />
+              {lookupMode === 'number' ? (
+                <input
+                  autoComplete="off"
+                  autoFocus
+                  enterKeyHint="search"
+                  id="cliente-numero"
+                  inputMode="numeric"
+                  onChange={(event) => {
+                    setNumberQuery(event.target.value.replace(/\D/g, ''))
+                    setSearched(false)
+                    setValidationError(null)
+                  }}
+                  pattern="[0-9]*"
+                  placeholder="Ej. 7 o 10045"
+                  value={numberQuery}
+                />
+              ) : (
+                <input
+                  autoComplete="off"
+                  autoFocus
+                  enterKeyHint="search"
+                  id="cliente-nombre"
+                  inputMode="text"
+                  onChange={(event) => {
+                    setNameQuery(event.target.value)
+                    setSearched(false)
+                    setValidationError(null)
+                  }}
+                  placeholder="Ej. Farmacia Central"
+                  value={nameQuery}
+                />
+              )}
             </div>
             <button aria-label="Buscar cliente" className="search-button" disabled={!canSubmit} type="submit">
               <Icon name={loading ? 'refresh' : 'search'} />
@@ -187,7 +248,7 @@ export function ClienteBusquedaView() {
         <section className="empty-result" aria-live="polite">
           <div className="empty-icon"><Icon name="users" /></div>
           <h2>Cliente no encontrado</h2>
-          <p>{`No existe un cliente autorizado con el número ${query.trim()}.`}</p>
+          <p>{`No existe un cliente autorizado con el número ${numberQuery}.`}</p>
           <button className="secondary-button" onClick={reset}>Limpiar búsqueda</button>
         </section>
       )}
@@ -199,7 +260,7 @@ export function ClienteBusquedaView() {
           <p>
             {!online && !catalogReady
               ? 'Sin conexión y sin catálogo local disponible. Conéctate a internet para buscar en GELIA.'
-              : `No hay clientes autorizados que coincidan con "${query.trim()}".`}
+              : `No hay clientes autorizados que coincidan con "${nameQuery.trim()}".`}
           </p>
           <button className="secondary-button" onClick={reset}>Limpiar búsqueda</button>
         </section>

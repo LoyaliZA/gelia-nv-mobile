@@ -1,4 +1,4 @@
-import { ApiError, API_CONNECT_TIMEOUT_MS, API_MAX_RETRIES, API_READ_TIMEOUT_MS, apiRequest } from '../../lib/api/apiClient'
+import { ApiError, API_CONNECT_TIMEOUT_MS, API_SYNC_READ_TIMEOUT_MS, apiRequest } from '../../lib/api/apiClient'
 import type { MobileSession } from '../auth/auth.types'
 import type { ClienteMovil } from './cliente.types'
 
@@ -11,6 +11,7 @@ export interface BootstrapPage {
   clientes: ClienteMovil[]
   hasMore: boolean
   maxClienteId: number
+  total: number | null
 }
 
 export interface ClienteChange {
@@ -24,6 +25,7 @@ export interface ChangesPage {
   events: ClienteChange[]
   cursor: number
   hasMore: boolean
+  authorizedTotal: number | null
 }
 
 export interface ClienteSearchMeta {
@@ -44,8 +46,9 @@ function auth(session: MobileSession) {
 
 const syncRequestOptions = {
   connectTimeoutMs: API_CONNECT_TIMEOUT_MS,
-  readTimeoutMs: API_READ_TIMEOUT_MS,
-  retries: API_MAX_RETRIES,
+  readTimeoutMs: API_SYNC_READ_TIMEOUT_MS,
+  retries: 2,
+  retryOn429: false,
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -63,6 +66,12 @@ function numberValue(payload: Record<string, unknown>, keys: string[], fallback 
     if (Number.isFinite(value)) return value
   }
   return fallback
+}
+
+function optionalNumber(payload: Record<string, unknown>, key: string): number | null {
+  if (!(key in payload) || payload[key] === null || payload[key] === undefined) return null
+  const value = Number(payload[key])
+  return Number.isFinite(value) ? value : null
 }
 
 export async function iniciarBootstrap(session: MobileSession): Promise<BootstrapState> {
@@ -95,7 +104,8 @@ export async function descargarPaginaBootstrap(
   return {
     clientes,
     hasMore: Boolean(payload.has_more),
-    maxClienteId: numberValue(payload, ['max_cliente_id', 'next_after_cliente_id'], maxFromItems),
+    maxClienteId: numberValue(payload, ['max_cliente_id', 'next_after_cliente_id', 'last_cliente_id'], maxFromItems),
+    total: optionalNumber(payload, 'total_items') ?? optionalNumber(payload, 'total'),
   }
 }
 
@@ -126,6 +136,7 @@ export async function descargarCambios(session: MobileSession, cursor: number): 
     events,
     cursor: numberValue(payload, ['cursor', 'next_cursor', 'max_seq'], lastSeq),
     hasMore: Boolean(payload.has_more),
+    authorizedTotal: optionalNumber(payload, 'authorized_total'),
   }
 }
 
