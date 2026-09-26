@@ -3,14 +3,20 @@ import type { AppRoute } from '../../app/routes'
 import { DashboardMobileView } from '../../components/dashboard/DashboardMobileView'
 import { DashboardModuleCard } from '../../components/dashboard/DashboardModuleCard'
 import { DashboardPanel } from '../../components/dashboard/DashboardPanel'
+import type { MobileSession } from '../auth/auth.types'
+import { ClienteSyncStatus } from '../clientes/ClienteSyncStatus'
+import { puedeConsultarClientesMovil } from '../clientes/mobileClienteAccess'
 
 interface DashboardViewProps {
   onNavigate: (route: AppRoute) => void
+  session: MobileSession
 }
 
-export function DashboardView({ onNavigate }: DashboardViewProps) {
+export function DashboardView({ onNavigate, session }: DashboardViewProps) {
+  const showClientes = puedeConsultarClientesMovil(session.permissions)
+
   const sections = [
-    {
+    ...(showClientes ? [{
       id: 'operaciones',
       content: (
         <DashboardPanel icon={Layers} title="Funciones Operativas_">
@@ -27,7 +33,7 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
           </div>
         </DashboardPanel>
       ),
-    },
+    }] : []),
   ]
 
   return (
@@ -36,8 +42,15 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
         <span className="eyebrow">PANEL MÓVIL_</span>
         <h1>Panel Principal</h1>
         <p>Accede a las herramientas operativas disponibles en la app móvil.</p>
+        {showClientes ? <ClienteSyncStatus compact /> : null}
       </header>
-      <DashboardMobileView sections={sections} />
+      {sections.length > 0 ? (
+        <DashboardMobileView sections={sections} />
+      ) : (
+        <section className="lookup-card lookup-hint-only">
+          <p>No hay módulos operativos habilitados para tu cuenta en la app móvil.</p>
+        </section>
+      )}
     </div>
   )
 }

@@ -16,6 +16,7 @@ import {
   limpiarCatalogo,
 } from './cliente.storage'
 import type { ClienteSyncMetadata } from './cliente.storage'
+import { MOBILE_CLIENTE_ACCESS_DENIED_MESSAGE, mensajeErrorAccesoClientes } from './mobileClienteAccess'
 import type { ClienteSyncState } from './cliente.types'
 
 const BOOTSTRAP_PAGE_DELAY_MS = 250
@@ -75,6 +76,7 @@ function retryDelay(error: unknown, attempt: number) {
 interface EngineOptions {
   scopeKey: string
   getSession: () => MobileSession
+  canSync: () => boolean
   onState: (state: ClienteSyncState) => void
   onOnlineChange: (online: boolean) => void
 }
@@ -110,13 +112,31 @@ export function createClienteSyncEngine(options: EngineOptions): ClienteSyncEngi
     retryTimer = null
   }
 
+  const publishBlocked = (message: string) => {
+    publish({
+      phase: 'blocked',
+      downloaded: 0,
+      total: null,
+      lastSyncedAt: null,
+      error: message,
+      retryAt: null,
+    })
+  }
+
   const scheduleRetry = (error: unknown) => {
+    const accessMessage = mensajeErrorAccesoClientes(error)
+    if (accessMessage) {
+      publishBlocked(accessMessage)
+      return
+    }
+
     const delay = retryDelay(error, backoffIndex)
     backoffIndex += 1
     const retryAt = Date.now() + delay
+    const connectionHint = 'No fue posible conectar con GELIA. Reintentando…'
     publish({
       phase: navigator.onLine ? 'retrying' : 'offline',
-      error: navigator.onLine ? null : 'La sincronización continuará al recuperar conexión.',
+      error: navigator.onLine ? connectionHint : 'La sincronización continuará al recuperar conexión.',
       retryAt,
     })
     clearRetry()
@@ -284,6 +304,18 @@ export function createClienteSyncEngine(options: EngineOptions): ClienteSyncEngi
 
   const runSyncBody = async () => {
     clearRetry()
+
+    if (!options.canSync()) {
+      publishBlocked(MOBILE_CLIENTE_ACCESS_DENIED_MESSAGE)
+      return
+    }
+
+    publish({
+      phase: 'connecting',
+      error: 'Conectando con GELIA para preparar el catálogo…',
+      retryAt: null,
+    })
+
     if (!navigator.onLine) {
       options.onOnlineChange(false)
       publish({
@@ -322,10 +354,22 @@ export function createClienteSyncEngine(options: EngineOptions): ClienteSyncEngi
       })
     } catch (error) {
       if (error instanceof SyncCancelled || stopped) return
+
+      const accessMessage = mensajeErrorAccesoClientes(error)
+      if (accessMessage) {
+        publishBlocked(accessMessage)
+        return
+      }
+
       try {
         if (await recover(error)) return
       } catch (retryError) {
         if (retryError instanceof SyncCancelled || stopped) return
+        const retryAccess = mensajeErrorAccesoClientes(retryError)
+        if (retryAccess) {
+          publishBlocked(retryAccess)
+          return
+        }
         if (!isPermanent(retryError) && isTransient(retryError)) {
           options.onOnlineChange(retryError instanceof ApiError && retryError.status === 0 ? false : navigator.onLine)
           scheduleRetry(retryError)
@@ -376,8 +420,13 @@ export function createClienteSyncEngine(options: EngineOptions): ClienteSyncEngi
   return {
     requestSync,
     start: () => {
+      if (!options.canSync()) {
+        publishBlocked(MOBILE_CLIENTE_ACCESS_DENIED_MESSAGE)
+        return
+      }
       void requestSync()
       periodicTimer = window.setInterval(() => {
+        if (!options.canSync()) return
         if (document.visibilityState === 'visible' && navigator.onLine) void requestSync()
       }, PERIODIC_SYNC_MS)
     },
@@ -391,7 +440,7 @@ export function createClienteSyncEngine(options: EngineOptions): ClienteSyncEngi
       options.onOnlineChange(true)
       backoffIndex = 0
       clearRetry()
-      void requestSync()
+      if (options.canSync()) void requestSync()
     },
     handleOffline: () => {
       options.onOnlineChange(false)

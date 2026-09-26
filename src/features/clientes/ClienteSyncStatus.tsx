@@ -11,8 +11,12 @@ function pruneTimestamps(timestamps: number[], now = Date.now()) {
   return timestamps.filter((timestamp) => now - timestamp < REFRESH_WINDOW_MS)
 }
 
-export function ClienteSyncStatus() {
-  const { online, state, syncNow } = useClienteSync()
+interface ClienteSyncStatusProps {
+  compact?: boolean
+}
+
+export function ClienteSyncStatus({ compact = false }: ClienteSyncStatusProps) {
+  const { online, state, syncNow, canSyncClientes } = useClienteSync()
   const refreshTimestamps = useRef<number[]>([])
   const [cooldownUntil, setCooldownUntil] = useState<number | null>(null)
   const [rateLimitMessage, setRateLimitMessage] = useState<string | null>(null)
@@ -38,32 +42,50 @@ export function ClienteSyncStatus() {
     return () => window.clearTimeout(timer)
   }, [cooldownUntil])
 
-  const syncing = state.phase === 'bootstrapping' || state.phase === 'incremental'
+  const syncing = state.phase === 'connecting'
+    || state.phase === 'bootstrapping'
+    || state.phase === 'incremental'
+    || state.phase === 'idle'
   const retrySeconds = state.phase === 'retrying' && state.retryAt !== null
     ? Math.max(0, Math.ceil((state.retryAt - now) / 1000))
     : null
-  const status = state.phase === 'ready'
-    ? 'Listo'
-    : state.phase === 'offline'
-      ? 'Offline'
-      : state.phase === 'retrying'
-        ? 'Reintentando'
-        : state.phase === 'error'
-          ? 'Reintentar'
-          : 'Sincronizando'
+
+  const status = state.phase === 'blocked'
+    ? 'Sin permiso'
+    : state.phase === 'ready'
+      ? 'Listo'
+      : state.phase === 'offline'
+        ? 'Offline'
+        : state.phase === 'retrying'
+          ? 'Reintentando'
+          : state.phase === 'error'
+            ? 'Reintentar'
+            : state.phase === 'connecting'
+              ? 'Conectando'
+              : 'Sincronizando'
 
   const detail = rateLimitMessage
-    ?? (state.phase === 'bootstrapping'
-      ? `${state.downloaded}${state.total !== null ? ` de ${state.total}` : ''} clientes descargados`
-      : state.phase === 'incremental'
-        ? 'Aplicando cambios recientes…'
-        : state.phase === 'retrying'
-          ? `Reintentando conexión en ${retrySeconds ?? 0} s…`
-          : state.phase === 'ready'
-            ? `${state.downloaded} clientes disponibles sin conexión.`
-            : state.error || 'La sincronización continuará al recuperar conexión.')
+    ?? (state.phase === 'blocked'
+      ? state.error
+      : state.phase === 'connecting'
+        ? state.error ?? 'Conectando con GELIA…'
+        : state.phase === 'bootstrapping'
+          ? `${state.downloaded}${state.total !== null ? ` de ${state.total}` : ''} clientes descargados`
+          : state.phase === 'incremental'
+            ? 'Aplicando cambios recientes…'
+            : state.phase === 'retrying'
+              ? state.error ?? `Reintentando en ${retrySeconds ?? 0} s…`
+              : state.phase === 'ready'
+                ? `${state.downloaded} clientes disponibles sin conexión.`
+                : state.phase === 'idle'
+                  ? 'Preparando sincronización del catálogo…'
+                  : state.phase === 'error'
+                    ? state.error ?? 'No fue posible sincronizar los clientes.'
+                    : state.error ?? 'La sincronización continuará al recuperar conexión.')
 
   const handleRefresh = () => {
+    if (!canSyncClientes) return
+
     const clickedAt = Date.now()
 
     if (cooldownUntil !== null && clickedAt < cooldownUntil) {
@@ -90,12 +112,14 @@ export function ClienteSyncStatus() {
     void syncNow()
   }
 
+  const disabled = !canSyncClientes || syncing || inCooldown || state.phase === 'blocked'
+
   return (
-    <div className="client-sync-status-wrap">
+    <div className={`client-sync-status-wrap${compact ? ' client-sync-status-wrap--compact' : ''}`}>
       <button
         aria-label="Actualizar sincronización de clientes"
-        className={`client-sync-status${rateLimitMessage ? ' client-sync-status--limited' : ''}`}
-        disabled={syncing || inCooldown}
+        className={`client-sync-status${rateLimitMessage ? ' client-sync-status--limited' : ''}${state.phase === 'blocked' ? ' client-sync-status--blocked' : ''}`}
+        disabled={disabled}
         onClick={handleRefresh}
         type="button"
       >

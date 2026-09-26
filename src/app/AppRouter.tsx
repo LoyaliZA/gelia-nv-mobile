@@ -2,8 +2,10 @@ import { GeliaLogo } from '../components/ui/GeliaLogo'
 import { DashboardView } from '../features/dashboard/DashboardView'
 import { LoginView } from '../features/auth/LoginView'
 import { useAuth } from '../features/auth/useAuth'
+import { ClienteAccessDeniedView } from '../features/clientes/ClienteAccessDeniedView'
 import { ClienteBusquedaView } from '../features/clientes/ClienteBusquedaView'
 import { ClienteSyncProvider } from '../features/clientes/ClienteSyncProvider'
+import { puedeConsultarClientesMovil } from '../features/clientes/mobileClienteAccess'
 import { PerfilView } from '../features/profile/PerfilView'
 import { PreferenciasView } from '../features/profile/PreferenciasView'
 import { MobileAppLayout } from '../layouts/MobileAppLayout'
@@ -27,17 +29,24 @@ export function AppRouter() {
     return <LoginView onLogin={auth.login} onLoginWithPasskey={auth.loginWithPasskey} />
   }
 
+  const canConsultarClientes = puedeConsultarClientesMovil(auth.session.permissions)
+
   return (
     <ClienteSyncProvider session={auth.session}>
       <MobileAppLayout
         activeRoute={route}
         onNavigate={navigate}
         onLogout={auth.logout}
+        session={auth.session}
         temaVisual={auth.session.temaVisual}
         user={auth.session.user}
       >
-        {route === 'inicio' && <DashboardView onNavigate={navigate} />}
-        {route === 'clientes' && <ClienteBusquedaView />}
+        {route === 'inicio' && <DashboardView onNavigate={navigate} session={auth.session} />}
+        {route === 'clientes' && (
+          canConsultarClientes
+            ? <ClienteBusquedaView />
+            : <ClienteAccessDeniedView onGoHome={() => navigate('inicio')} />
+        )}
         {route === 'perfil' && (
           <PerfilView
             onLogout={auth.logout}
