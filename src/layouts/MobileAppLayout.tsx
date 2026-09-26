@@ -4,13 +4,14 @@ import type { AppRoute } from '../app/routes'
 import { MobileAccessSheet } from '../components/navigation/MobileAccessSheet'
 import { MobileBottomBar } from '../components/navigation/MobileBottomBar'
 import { MobileProfileSheet } from '../components/navigation/MobileProfileSheet'
-import type { GeliaUser, TemaVisual } from '../features/auth/auth.types'
+import type { GeliaUser, MobileSession, TemaVisual } from '../features/auth/auth.types'
 import { useThemeToggle } from '../hooks/useThemeToggle'
 
 interface MobileAppLayoutProps extends PropsWithChildren {
   activeRoute: AppRoute
   onNavigate: (route: AppRoute) => void
   onLogout: () => Promise<void>
+  session: MobileSession
   temaVisual: TemaVisual
   user: GeliaUser
 }
@@ -20,6 +21,7 @@ export function MobileAppLayout({
   children,
   onNavigate,
   onLogout,
+  session,
   temaVisual,
   user,
 }: MobileAppLayoutProps) {
@@ -76,6 +78,7 @@ export function MobileAppLayout({
         onClose={closeSheets}
         onNavigate={onNavigate}
         open={accessOpen}
+        permissions={session.permissions}
       />
       <MobileProfileSheet
         onClose={closeSheets}

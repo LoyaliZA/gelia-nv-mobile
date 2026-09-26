@@ -24,7 +24,8 @@ export function ClienteBusquedaView() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [source, setSource] = useState<'api' | 'local' | null>(null)
   const [validationError, setValidationError] = useState<string | null>(null)
-  const { findCliente, searchClientes, online, state } = useClienteSync()
+  const [apiError, setApiError] = useState<string | null>(null)
+  const { findCliente, searchClientes, online, state, canSyncClientes } = useClienteSync()
 
   const clearResults = () => {
     setMode(null)
@@ -50,6 +51,7 @@ export function ClienteBusquedaView() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setValidationError(null)
+    setApiError(null)
     setCliente(null)
     setResults([])
     setMeta(null)
@@ -63,6 +65,7 @@ export function ClienteBusquedaView() {
         const result = await findCliente(numero)
         setCliente(result.cliente)
         setSource(result.source)
+        setApiError(result.error ?? null)
         setSearched(true)
       } finally {
         setLoading(false)
@@ -85,6 +88,7 @@ export function ClienteBusquedaView() {
       setResults(pageResult.data)
       setMeta(pageResult.meta)
       setSource(pageResult.source)
+      setApiError(pageResult.error ?? null)
       setSearched(true)
     } finally {
       setLoading(false)
@@ -124,8 +128,12 @@ export function ClienteBusquedaView() {
         <span className="eyebrow">OPERACIONES_</span>
         <h1>Consultar Clientes</h1>
         <p>Busca por número o por nombre para corroborar la información del cliente autorizado.</p>
-        <ClienteSyncStatus />
+        {canSyncClientes ? <ClienteSyncStatus /> : null}
       </header>
+
+      {apiError && (
+        <p className="form-error lookup-form-error" role="alert">{apiError}</p>
+      )}
 
       <section className="lookup-card">
         <div className="lookup-mode" role="tablist" aria-label="Tipo de búsqueda">

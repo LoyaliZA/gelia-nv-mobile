@@ -10,6 +10,7 @@ import { findActiveRootGroupId } from '../../config/sidebarNavigation'
 interface SidebarNavMenuProps {
   activeRoute: AppRoute
   onNavigate: (route: AppRoute) => void
+  permissions?: string[]
   scrollContainerRef?: RefObject<HTMLElement | null>
   sheetOpen?: boolean
 }
@@ -119,11 +120,12 @@ function SidebarNavGroup({
 export function SidebarNavMenu({
   activeRoute,
   onNavigate,
+  permissions = [],
   scrollContainerRef,
   sheetOpen = false,
 }: SidebarNavMenuProps) {
   const navUrl = routeToNavUrl(activeRoute)
-  const tree = useMemo(() => buildMobileNavigation(), [])
+  const tree = useMemo(() => buildMobileNavigation(permissions), [permissions])
   const groupRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   const [openGroupId, setOpenGroupId] = useState<string | null>(() =>

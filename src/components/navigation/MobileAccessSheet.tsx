@@ -7,9 +7,10 @@ interface MobileAccessSheetProps {
   onClose: () => void
   onNavigate: (route: AppRoute) => void
   open: boolean
+  permissions?: string[]
 }
 
-export function MobileAccessSheet({ activeRoute, onClose, onNavigate, open }: MobileAccessSheetProps) {
+export function MobileAccessSheet({ activeRoute, onClose, onNavigate, open, permissions = [] }: MobileAccessSheetProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const handleNavigate = (route: AppRoute) => {
@@ -26,6 +27,7 @@ export function MobileAccessSheet({ activeRoute, onClose, onNavigate, open }: Mo
         <SidebarNavMenu
           activeRoute={activeRoute}
           onNavigate={handleNavigate}
+          permissions={permissions}
           scrollContainerRef={scrollRef}
           sheetOpen={open}
         />
