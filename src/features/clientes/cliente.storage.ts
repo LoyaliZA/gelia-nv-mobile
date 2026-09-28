@@ -7,6 +7,19 @@ const DB_VERSION = 1
 const CLIENTES_STORE = 'clientes'
 const META_STORE = 'metadata'
 
+let epoch = 0
+let chain: Promise<void> = Promise.resolve()
+
+function exclusive<T>(task: () => Promise<T>): Promise<T> {
+  const run = chain.then(task, task)
+  chain = run.then(() => undefined, () => undefined)
+  return run
+}
+
+export function epochCatalogo() {
+  return epoch
+}
+
 interface ClienteStored extends ClienteMovil {
   storage_key: string
   scope_key: string
@@ -131,35 +144,97 @@ export async function buscarClientesLocal(
   }
 }
 
+async function withDatabase<T>(
+  stores: string[],
+  mode: IDBTransactionMode,
+  run: (transaction: IDBTransaction) => Promise<T>,
+) {
+  const database = await openDatabase()
+  try {
+    const transaction = database.transaction(stores, mode)
+    const done = transactionDone(transaction)
+    done.catch(() => undefined)
+    const result = await run(transaction)
+    await done
+    return result
+  } finally {
+    database.close()
+  }
+}
+
 export async function guardarClientes(scopeKey: string, clientes: ClienteMovil[]) {
   if (!clientes.length) return
-  const database = await openDatabase()
-  const transaction = database.transaction(CLIENTES_STORE, 'readwrite')
-  const store = transaction.objectStore(CLIENTES_STORE)
-  clientes.forEach((cliente) => store.put(storedCliente(scopeKey, cliente)))
-  await transactionDone(transaction)
-  database.close()
+  const generation = epoch
+  await exclusive(async () => {
+    if (generation !== epoch) return
+    await withDatabase([CLIENTES_STORE], 'readwrite', async (transaction) => {
+      const store = transaction.objectStore(CLIENTES_STORE)
+      clientes.forEach((cliente) => store.put(storedCliente(scopeKey, cliente)))
+    })
+  })
 }
 
 export async function eliminarClientePorId(scopeKey: string, clienteId: number) {
-  const database = await openDatabase()
-  const transaction = database.transaction(CLIENTES_STORE, 'readwrite')
-  const index = transaction.objectStore(CLIENTES_STORE).index('by_scope_id')
-  const key = await requestResult(index.getKey([scopeKey, clienteId]))
-  if (key !== undefined) transaction.objectStore(CLIENTES_STORE).delete(key)
-  await transactionDone(transaction)
-  database.close()
+  const generation = epoch
+  await exclusive(async () => {
+    if (generation !== epoch) return
+    await withDatabase([CLIENTES_STORE], 'readwrite', async (transaction) => {
+      const index = transaction.objectStore(CLIENTES_STORE).index('by_scope_id')
+      const key = await requestResult(index.getKey([scopeKey, clienteId]))
+      if (key !== undefined) transaction.objectStore(CLIENTES_STORE).delete(key)
+    })
+  })
 }
 
 export async function limpiarCatalogo(scopeKey: string) {
-  const database = await openDatabase()
-  const transaction = database.transaction([CLIENTES_STORE, META_STORE], 'readwrite')
-  const clientes = transaction.objectStore(CLIENTES_STORE)
-  const keys = await requestResult(clientes.index('by_scope').getAllKeys(scopeKey))
-  keys.forEach((key) => clientes.delete(key))
-  transaction.objectStore(META_STORE).delete(scopeKey)
-  await transactionDone(transaction)
-  database.close()
+  const generation = epoch
+  await exclusive(async () => {
+    if (generation !== epoch) return
+    await borrarScope(scopeKey)
+  })
+}
+
+function borrarBase(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(DB_NAME)
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error)
+    request.onblocked = () => resolve()
+  })
+}
+
+async function borrarScope(scopeKey: string) {
+  await withDatabase([CLIENTES_STORE, META_STORE], 'readwrite', async (transaction) => {
+    const clientes = transaction.objectStore(CLIENTES_STORE)
+    const keys = await requestResult(clientes.index('by_scope').getAllKeys(scopeKey))
+    keys.forEach((key) => clientes.delete(key))
+    transaction.objectStore(META_STORE).delete(scopeKey)
+  })
+}
+
+export async function purgarTodoElCatalogo() {
+  epoch += 1
+  await exclusive(async () => {
+    await borrarBase()
+  })
+}
+
+export async function purgarScopesObsoletos(scopeKeyActual: string) {
+  epoch += 1
+  await exclusive(async () => {
+    await withDatabase([CLIENTES_STORE, META_STORE], 'readwrite', async (transaction) => {
+      const clientes = transaction.objectStore(CLIENTES_STORE)
+      const stored = await requestResult(clientes.getAll()) as ClienteStored[]
+      stored.forEach((cliente) => {
+        if (cliente.scope_key !== scopeKeyActual) clientes.delete(cliente.storage_key)
+      })
+      const metadata = transaction.objectStore(META_STORE)
+      const scopes = await requestResult(metadata.getAllKeys())
+      scopes.forEach((key) => {
+        if (key !== scopeKeyActual) metadata.delete(key)
+      })
+    })
+  })
 }
 
 export async function leerSyncMetadata(scopeKey: string): Promise<ClienteSyncMetadata | null> {
@@ -171,9 +246,11 @@ export async function leerSyncMetadata(scopeKey: string): Promise<ClienteSyncMet
 }
 
 export async function guardarSyncMetadata(metadata: ClienteSyncMetadata) {
-  const database = await openDatabase()
-  const transaction = database.transaction(META_STORE, 'readwrite')
-  transaction.objectStore(META_STORE).put(metadata)
-  await transactionDone(transaction)
-  database.close()
+  const generation = epoch
+  await exclusive(async () => {
+    if (generation !== epoch) return
+    await withDatabase([META_STORE], 'readwrite', async (transaction) => {
+      transaction.objectStore(META_STORE).put(metadata)
+    })
+  })
 }

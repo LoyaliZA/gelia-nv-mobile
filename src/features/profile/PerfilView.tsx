@@ -4,13 +4,14 @@ import { ProfileAvatar } from '../../components/profile/ProfileAvatar'
 import { Icon } from '../../components/ui/Icon'
 import { ApiError } from '../../lib/api/apiClient'
 import { resolveProfilePhotoUrl } from '../../lib/geliaAssets'
+import { abrirPrivacidad } from '../../lib/privacidad'
 import { compressImageToWebp } from '../../utils/compressImage'
 import type { MobileSession } from '../auth/auth.types'
 import { removeProfilePhoto, uploadProfilePhoto } from './profile.api'
 
 interface PerfilViewProps {
   onLogout: () => Promise<void>
-  onSessionUpdate: (session: MobileSession) => void
+  onSessionUpdate: (session: MobileSession) => Promise<void>
   session: MobileSession
 }
 
@@ -39,7 +40,7 @@ export function PerfilView({ onLogout, onSessionUpdate, session }: PerfilViewPro
       const preview = URL.createObjectURL(comprimido)
       setPreviewUrl(preview)
       const actualizado = await uploadProfilePhoto(session, comprimido)
-      onSessionUpdate(actualizado)
+      await onSessionUpdate(actualizado)
       setPreviewUrl(null)
       URL.revokeObjectURL(preview)
       setMensaje('Foto de perfil actualizada.')
@@ -58,7 +59,7 @@ export function PerfilView({ onLogout, onSessionUpdate, session }: PerfilViewPro
     try {
       const actualizado = await removeProfilePhoto(session)
       setPreviewUrl(null)
-      onSessionUpdate(actualizado)
+      await onSessionUpdate(actualizado)
       setMensaje('Foto de perfil eliminada.')
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'No se pudo eliminar la foto.')
@@ -105,6 +106,7 @@ export function PerfilView({ onLogout, onSessionUpdate, session }: PerfilViewPro
         {mensaje && <p className="passkey-success">{mensaje}</p>}
       </section>
 
+      <button className="privacy-link" onClick={() => void abrirPrivacidad()} type="button">Aviso de privacidad</button>
       <button className="logout-button" onClick={() => void onLogout()}><Icon name="logout" /> Cerrar sesión</button>
     </div>
   )

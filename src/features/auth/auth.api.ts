@@ -10,6 +10,7 @@ import type {
   PublicKeyCredentialRequestOptionsJSON,
 } from '@simplewebauthn/browser'
 import { apiRequest } from '../../lib/api/apiClient'
+import { APP_VERSION } from '../../config/appVersion'
 import { getOrCreateDeviceUuid } from '../../services/storage/sessionStorage'
 import type {
   LoginCredentials,
@@ -23,12 +24,18 @@ function deviceName() {
   return Capacitor.isNativePlatform() ? 'GELIA Móvil' : 'Navegador de desarrollo'
 }
 
-function devicePayload() {
+const loginRequest = {
+  retries: 0,
+  retryOn429: false,
+  rateLimitScope: 'login' as const,
+}
+
+async function devicePayload() {
   return {
-    device_uuid: getOrCreateDeviceUuid(),
+    device_uuid: await getOrCreateDeviceUuid(),
     device_name: deviceName(),
     platform: Capacitor.getPlatform(),
-    app_version: import.meta.env.VITE_APP_VERSION || '0.1.0',
+    app_version: import.meta.env.VITE_APP_VERSION || APP_VERSION,
   }
 }
 
@@ -42,6 +49,8 @@ function sessionFromLogin(response: MobileLoginResponse): MobileSession {
     permissions: response.permissions,
     temaVisual: response.tema_visual,
     device: response.device,
+    catalogAuthorizedAt: new Date().toISOString(),
+    catalogBlocked: false,
   }
 }
 
@@ -80,8 +89,9 @@ export async function loginMobile(credentials: LoginCredentials): Promise<Mobile
     method: 'POST',
     body: {
       ...credentials,
-      ...devicePayload(),
+      ...await devicePayload(),
     },
+    ...loginRequest,
   })
 
   return sessionFromLogin(response)
@@ -96,6 +106,8 @@ export async function fetchMobileMe(session: MobileSession): Promise<MobileSessi
     permissions: response.permissions,
     temaVisual: response.tema_visual,
     device: response.device,
+    catalogAuthorizedAt: new Date().toISOString(),
+    catalogBlocked: false,
   }
 }
 
@@ -112,8 +124,9 @@ export async function passkeyLoginOptions(login: string) {
     body: {
       login,
       client: 'mobile',
-      device_uuid: getOrCreateDeviceUuid(),
+      device_uuid: await getOrCreateDeviceUuid(),
     },
+    ...loginRequest,
   })
 }
 
@@ -125,9 +138,10 @@ export async function loginWithPasskey(login: string): Promise<MobileSession> {
     body: {
       login,
       client: 'mobile',
-      ...devicePayload(),
+      ...await devicePayload(),
       credential,
     },
+    ...loginRequest,
   })
   return sessionFromLogin(response)
 }
@@ -140,7 +154,7 @@ export async function registerPasskey(session: MobileSession, nickname?: string)
       client: 'mobile',
       nickname,
       platform: Capacitor.getPlatform(),
-      device_uuid: getOrCreateDeviceUuid(),
+      device_uuid: await getOrCreateDeviceUuid(),
     },
   })
 
@@ -163,7 +177,7 @@ export async function registerPasskey(session: MobileSession, nickname?: string)
       client: 'mobile',
       nickname,
       platform: Capacitor.getPlatform(),
-      device_uuid: getOrCreateDeviceUuid(),
+      device_uuid: await getOrCreateDeviceUuid(),
       credential,
     },
   })
