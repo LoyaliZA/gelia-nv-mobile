@@ -10,5 +10,8 @@ export function useAuth() {
     loginWithPasskey: context.loginWithPasskey,
     logout: context.logout,
     updateSession: context.updateSession,
+    cerrarPorRevocacion: context.cerrarPorRevocacion,
+    revocarCatalogo: context.revocarCatalogo,
+    revalidarSesion: context.revalidarSesion,
   }
 }

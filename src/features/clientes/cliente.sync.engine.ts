@@ -7,6 +7,7 @@ import {
   iniciarBootstrap,
   requiereNuevoBootstrap,
 } from './cliente.api'
+import { MENSAJE_CATALOGO_REQUIERE_CONEXION } from './catalogoVentana'
 import {
   contarClientesPorScope,
   eliminarClientePorId,
@@ -14,6 +15,7 @@ import {
   guardarSyncMetadata,
   leerSyncMetadata,
   limpiarCatalogo,
+  purgarScopesObsoletos,
 } from './cliente.storage'
 import type { ClienteSyncMetadata } from './cliente.storage'
 import { MOBILE_CLIENTE_ACCESS_DENIED_MESSAGE, mensajeErrorAccesoClientes } from './mobileClienteAccess'
@@ -40,6 +42,16 @@ class SyncCancelled extends Error {
 }
 
 let tail: Promise<void> = Promise.resolve()
+const paradas = new Set<() => void>()
+
+export function registrarParadaSync(stop: () => void) {
+  paradas.add(stop)
+  return () => { paradas.delete(stop) }
+}
+
+export function detenerSincronizacion() {
+  for (const stop of paradas) stop()
+}
 
 function enqueue(task: () => Promise<void>): Promise<void> {
   const run = tail.then(task, task)
@@ -77,8 +89,12 @@ interface EngineOptions {
   scopeKey: string
   getSession: () => MobileSession
   canSync: () => boolean
+  catalogoVigente: () => boolean
   onState: (state: ClienteSyncState) => void
   onOnlineChange: (online: boolean) => void
+  onSessionRevoked: () => Promise<void>
+  onCatalogRevoked: () => Promise<void>
+  onRevalidar: () => void
 }
 
 export interface ClienteSyncEngine {
@@ -110,6 +126,28 @@ export function createClienteSyncEngine(options: EngineOptions): ClienteSyncEngi
   const clearRetry = () => {
     if (retryTimer !== null) window.clearTimeout(retryTimer)
     retryTimer = null
+  }
+
+  const halt = () => {
+    stopped = true
+    clearRetry()
+    if (periodicTimer !== null) window.clearInterval(periodicTimer)
+    periodicTimer = null
+  }
+
+  const responderAcceso = async (error: unknown) => {
+    if (!(error instanceof ApiError)) return false
+    if (error.status === 401) {
+      halt()
+      await options.onSessionRevoked()
+      return true
+    }
+    if (error.status === 403) {
+      halt()
+      await options.onCatalogRevoked()
+      return true
+    }
+    return false
   }
 
   const publishBlocked = (message: string) => {
@@ -286,6 +324,7 @@ export function createClienteSyncEngine(options: EngineOptions): ClienteSyncEngi
 
   const recover = async (error: unknown) => {
     if (!requiereNuevoBootstrap(error)) return false
+    await purgarScopesObsoletos(options.scopeKey)
     await limpiarCatalogo(options.scopeKey)
     const metadata = await bootstrap(null)
     const refreshed = await incremental(metadata)
@@ -307,6 +346,19 @@ export function createClienteSyncEngine(options: EngineOptions): ClienteSyncEngi
 
     if (!options.canSync()) {
       publishBlocked(MOBILE_CLIENTE_ACCESS_DENIED_MESSAGE)
+      return
+    }
+
+    if (!options.catalogoVigente()) {
+      publish({
+        phase: 'offline',
+        downloaded: 0,
+        total: null,
+        lastSyncedAt: null,
+        error: MENSAJE_CATALOGO_REQUIERE_CONEXION,
+        retryAt: null,
+      })
+      if (navigator.onLine) options.onRevalidar()
       return
     }
 
@@ -354,6 +406,7 @@ export function createClienteSyncEngine(options: EngineOptions): ClienteSyncEngi
       })
     } catch (error) {
       if (error instanceof SyncCancelled || stopped) return
+      if (await responderAcceso(error)) return
 
       const accessMessage = mensajeErrorAccesoClientes(error)
       if (accessMessage) {
@@ -365,6 +418,7 @@ export function createClienteSyncEngine(options: EngineOptions): ClienteSyncEngi
         if (await recover(error)) return
       } catch (retryError) {
         if (retryError instanceof SyncCancelled || stopped) return
+        if (await responderAcceso(retryError)) return
         const retryAccess = mensajeErrorAccesoClientes(retryError)
         if (retryAccess) {
           publishBlocked(retryAccess)

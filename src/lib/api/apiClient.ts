@@ -29,6 +29,7 @@ interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
   readTimeoutMs?: number
   retries?: number
   retryOn429?: boolean
+  rateLimitScope?: 'login' | 'sync'
 }
 
 function apiBaseUrl() {
@@ -37,7 +38,10 @@ function apiBaseUrl() {
   return configured
 }
 
-function errorMessage(payload: unknown, status: number) {
+function errorMessage(payload: unknown, status: number, rateLimitScope?: 'login' | 'sync') {
+  if (status === 429 && rateLimitScope === 'login') {
+    return 'Espera un momento antes de volver a intentar el acceso.'
+  }
   if (payload && typeof payload === 'object' && 'message' in payload) {
     const message = (payload as { message?: unknown }).message
     if (typeof message === 'string' && message.trim()) return message
@@ -184,7 +188,7 @@ async function executeRequest<T>(path: string, options: ApiRequestOptions): Prom
   }
   const { status, payload, headers } = await performRequest(path, options, timeouts)
   if (!status || status < 200 || status >= 300) {
-    throw new ApiError(errorMessage(payload, status), status, payload, parseRetryAfterSeconds(headers))
+    throw new ApiError(errorMessage(payload, status, options.rateLimitScope), status, payload, parseRetryAfterSeconds(headers))
   }
   return payload as T
 }

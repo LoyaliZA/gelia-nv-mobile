@@ -7,7 +7,7 @@ import { bootstrapGeliaTheme } from './theme/bootstrapTheme'
 
 async function bootstrap() {
   await ensurePasskeyBootstrap()
-  bootstrapGeliaTheme()
+  await bootstrapGeliaTheme()
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <App />

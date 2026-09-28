@@ -118,6 +118,7 @@ svg:not(.gelia-logo) { width: 1.25rem; height: 1.25rem; }
 .primary-button:disabled { opacity: .5; cursor: not-allowed; }
 .login-card footer { margin-top: 1.25rem; padding-top: 1rem; display: flex; align-items: center; gap: .55rem; border-top: 1px solid var(--border); color: var(--muted); font-size: .66rem; line-height: 1.45; }
 .login-card footer svg { width: 1rem; flex: 0 0 auto; color: var(--color-primario); }
+.privacy-link { justify-self: start; margin-top: .9rem; padding: 0; border: 0; background: none; color: var(--color-primario); font: inherit; font-size: .78rem; font-weight: 800; letter-spacing: .04em; text-decoration: underline; cursor: pointer; }
 
 .app-shell { min-height: 100dvh; background: var(--bg); }
 .app-content { width: min(100%, var(--gelia-content-max, 52rem)); min-height: 100dvh; margin: auto; padding: calc(env(safe-area-inset-top, 0px) + var(--gelia-page-shell-padding-block, 1.4rem)) var(--gelia-page-shell-padding-inline, 1rem) calc(var(--gelia-mobile-nav-offset) + env(safe-area-inset-bottom, 0px)); }

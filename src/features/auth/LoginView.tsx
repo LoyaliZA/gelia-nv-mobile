@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
+import { APP_VERSION } from '../../config/appVersion'
 import { GeliaLogo } from '../../components/ui/GeliaLogo'
 import { Icon } from '../../components/ui/Icon'
 import { ApiError } from '../../lib/api/apiClient'
+import { abrirPrivacidad } from '../../lib/privacidad'
 import { passkeyLoginOptions } from './auth.api'
 import { usePasskeyDisponible } from './usePasskeyDisponible'
 import type { LoginCredentials } from './auth.types'
@@ -66,7 +68,7 @@ export function LoginView({ onLogin, onLoginWithPasskey }: LoginViewProps) {
       <section className="login-hero">
         <div className="brand-lockup">
           <GeliaLogo className="gelia-logo--brand" variant="sparkle" />
-          <div><span className="eyebrow">GELIA-NV</span><strong>1.0.0</strong></div>
+          <div><span className="eyebrow">GELIA-NV</span><strong>{APP_VERSION}</strong></div>
         </div>
         <div className="login-message">
           <span className="security-chip"><Icon name="shield" /> Acceso protegido</span>
@@ -102,6 +104,7 @@ export function LoginView({ onLogin, onLoginWithPasskey }: LoginViewProps) {
             )}
           </form>
           <footer><Icon name="shield" /><span>La contraseña se valida en GELIA y no se guarda en este dispositivo.</span></footer>
+          <button className="privacy-link" onClick={() => void abrirPrivacidad()} type="button">Aviso de privacidad</button>
         </div>
       </section>
     </main>

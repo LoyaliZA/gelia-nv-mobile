@@ -8,7 +8,7 @@ import type { MobileSession, TemaVisual } from '../auth/auth.types'
 import { updateMobileTemaVisual } from './profile.api'
 
 interface PreferenciasViewProps {
-  onSessionUpdate: (session: MobileSession) => void
+  onSessionUpdate: (session: MobileSession) => Promise<void>
   session: MobileSession
 }
 
@@ -32,7 +32,7 @@ export function PreferenciasView({ onSessionUpdate, session }: PreferenciasViewP
       if (cambios.modo) {
         await clearThemeOverride()
       }
-      onSessionUpdate(actualizado)
+      await onSessionUpdate(actualizado)
       setMensaje('Preferencias guardadas.')
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'No se pudieron guardar las preferencias.')

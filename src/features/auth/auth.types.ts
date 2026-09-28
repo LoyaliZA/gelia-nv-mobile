@@ -42,6 +42,10 @@ export interface MobileSession {
   permissions: string[]
   temaVisual: TemaVisual
   device: MobileDevice
+  /** ISO de la última respuesta autorizada de login o /mobile/me. Vacío si aún no se revalidó. */
+  catalogAuthorizedAt: string
+  /** El catálogo local se bloqueó tras un 403 y no se consulta hasta una revalidación exitosa. */
+  catalogBlocked: boolean
 }
 
 export interface LoginCredentials {
