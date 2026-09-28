@@ -1,6 +1,6 @@
 # GELIA-NV móvil: fases para preparar el release de Google Play
 
-Revisión de `LoyaliZA/gelia-nv-mobile`, `main` en `a44e565`, 28 de septiembre de 2026. Es un plan de implementación, no una certificación ni cambios funcionales. Coordinar con el [plan del backend](https://github.com/LoyaliZA/gelia-nv/blob/main/PLAN_PUBLICACION_PLAY_BACKEND.md).
+Revisión de `LoyaliZA/gelia-nv-mobile`, `main` en `a44e565`, 28 de septiembre de 2026. Es un plan de implementación, no una certificación ni cambios funcionales. Coordinar con el [plan del backend](https://github.com/LoyaliZA/gelia-nv/pull/2).
 
 ## Estado actual
 
