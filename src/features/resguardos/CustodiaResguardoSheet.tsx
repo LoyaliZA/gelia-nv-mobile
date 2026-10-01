@@ -60,6 +60,8 @@ export function CustodiaResguardoSheet({
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null)
   const [exito, setExito] = useState(false)
   const evidenciaInputRef = useRef<HTMLInputElement | null>(null)
+  const sessionRef = useRef(session)
+  sessionRef.current = session
 
   const reiniciar = useCallback(() => {
     setFormulario(null)
@@ -71,28 +73,30 @@ export function CustodiaResguardoSheet({
     setExito(false)
   }, [])
 
-  const cargar = useCallback(async () => {
+  const cargar = useCallback(async (modo: 'inicial' | 'refrescar' | 'reintentar' = 'refrescar') => {
+    if (modo === 'inicial' || modo === 'reintentar') reiniciar()
     setCargando(true)
     setErrorCarga(null)
     try {
-      const data = await obtenerFormularioCustodiaResguardo(session, resguardoId)
+      const data = await obtenerFormularioCustodiaResguardo(sessionRef.current, resguardoId)
       setFormulario(data)
-      setBultos(bultosIniciales(data.resguardo.bultos_pendientes_custodia ?? []))
-      if (data.almacenes.length === 1) {
-        setAlmacenId(String(data.almacenes[0].id))
+      if (modo !== 'refrescar') {
+        setBultos(bultosIniciales(data.resguardo.bultos_pendientes_custodia ?? []))
+        if (data.almacenes.length === 1) {
+          setAlmacenId(String(data.almacenes[0].id))
+        }
       }
     } catch (err) {
       setErrorCarga(mensajeErrorPdv(err, 'No se pudo cargar el formulario de custodia.'))
     } finally {
       setCargando(false)
     }
-  }, [resguardoId, session])
+  }, [resguardoId, reiniciar])
 
   useEffect(() => {
     if (!open) return
-    reiniciar()
-    void cargar()
-  }, [open, resguardoId, cargar, reiniciar])
+    void cargar('inicial')
+  }, [open, resguardoId, cargar])
 
   const catalogos = formulario?.catalogos ?? {}
   const tiposBulto = catalogos.tipos_bulto ?? { caja: 'Caja' }
@@ -195,7 +199,7 @@ export function CustodiaResguardoSheet({
           {errorCarga && !formulario && (
             <div className="pdv-state-card pdv-state-card--error">
               <p>{errorCarga}</p>
-              <button className="secondary-button" onClick={() => void cargar()} type="button">
+              <button className="secondary-button" onClick={() => void cargar('reintentar')} type="button">
                 <RefreshCw size={15} /> Reintentar
               </button>
             </div>
@@ -301,7 +305,7 @@ export function CustodiaResguardoSheet({
 
               <section className="pdv-detail-section">
                 <span className="pdv-form__label">Evidencia fotográfica (opcional)</span>
-                <div className="pdv-action-stack pdv-action-stack--row">
+                <div className="pdv-photo__actions">
                   {cameraNativaDisponible() ? (
                     <>
                       <button className="secondary-button" disabled={enviando} onClick={() => void capturar('camera')} type="button">

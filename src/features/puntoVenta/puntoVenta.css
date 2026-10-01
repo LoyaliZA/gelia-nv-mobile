@@ -573,10 +573,18 @@
 .pdv-submit-button {
   min-height: 3rem;
   gap: .5rem;
+  justify-content: center;
 }
 
 .pdv-action-button {
   justify-content: center;
+}
+
+.pdv-action-stack .secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
 }
 
 .pdv-form {
