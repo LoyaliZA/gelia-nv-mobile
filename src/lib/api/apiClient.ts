@@ -218,6 +218,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
 }
 
 interface ApiFormRequestOptions {
+  method?: 'POST' | 'PUT' | 'PATCH'
   token?: string
   scopeVersion?: string
   connectTimeoutMs?: number
@@ -242,7 +243,7 @@ async function executeFormRequest<T>(
 
   try {
     const response = await fetch(url, {
-      method: 'POST',
+      method: options.method ?? 'POST',
       headers,
       body: formData,
       signal: controller.signal,
@@ -272,4 +273,47 @@ export async function apiFormRequest<T>(
   options: ApiFormRequestOptions = {},
 ): Promise<T> {
   return executeFormRequest<T>(path, formData, options)
+}
+
+export async function apiBlobRequest(path: string, token: string): Promise<Blob> {
+  const headers = new Headers()
+  headers.set('Accept', '*/*')
+  headers.set('Authorization', `Bearer ${token}`)
+  const url = `${apiBaseUrl()}${path}`
+
+  if (Capacitor.isNativePlatform()) {
+    const response = await CapacitorHttp.request({
+      url,
+      method: 'GET',
+      headers: headersRecord(headers),
+      responseType: 'blob',
+      connectTimeout: API_CONNECT_TIMEOUT_MS,
+      readTimeout: API_READ_TIMEOUT_MS,
+    })
+    const contentType = headerValue(normalizeHeaderRecord(response.headers), 'content-type')
+    if (!response.status || response.status < 200 || response.status >= 300) {
+      throw new ApiError('No se pudo cargar la imagen.', response.status || 0)
+    }
+    return blobDesdeRespuestaNativa(response.data, contentType)
+  }
+
+  const response = await fetch(url, { headers })
+  if (!response.ok) {
+    throw new ApiError('No se pudo cargar la imagen.', response.status)
+  }
+  return response.blob()
+}
+
+function blobDesdeRespuestaNativa(data: unknown, contentType: string | null): Blob {
+  const mime = (contentType || 'image/jpeg').split(';')[0].trim() || 'image/jpeg'
+  if (data instanceof Blob) return data
+  if (typeof data !== 'string' || data.length === 0) {
+    throw new ApiError('No se pudo cargar la imagen.', 0)
+  }
+  const binary = atob(data)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index)
+  }
+  return new Blob([bytes], { type: mime })
 }

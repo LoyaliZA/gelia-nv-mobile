@@ -62,37 +62,68 @@ function SidebarNavLink({
   )
 }
 
+function groupContainsRoute(group: SidebarGroupNode, activeRoute: AppRoute): boolean {
+  return group.children.some((child) => {
+    if (child.type === 'link') return child.mobileRoute === activeRoute
+    if (child.type === 'group') return groupContainsRoute(child, activeRoute)
+    return false
+  })
+}
+
+function collectActiveNestedGroupIds(groups: SidebarGroupNode[], activeRoute: AppRoute): string[] {
+  const ids: string[] = []
+
+  const walk = (nodes: SidebarGroupNode['children']) => {
+    for (const child of nodes) {
+      if (child.type !== 'group') continue
+      if (groupContainsRoute(child, activeRoute)) ids.push(child.id)
+      walk(child.children)
+    }
+  }
+
+  for (const group of groups) walk(group.children)
+  return ids
+}
+
 function SidebarNavGroup({
   activeRoute,
+  depth,
   group,
   groupRef,
   isOpen,
+  nestedOpenIds,
   onNavigate,
   style,
   toggleGroup,
+  toggleNested,
 }: {
   activeRoute: AppRoute
+  depth: number
   group: SidebarGroupNode
-  groupRef: (el: HTMLDivElement | null) => void
+  groupRef?: (el: HTMLDivElement | null) => void
   isOpen: boolean
+  nestedOpenIds: ReadonlySet<string>
   onNavigate: (route: AppRoute) => void
   style?: CSSProperties
   toggleGroup: (id: string) => void
+  toggleNested: (id: string) => void
 }) {
   const Icon = group.icon
-  const visibleLinks = group.children.filter(
-    (child) => child.type === 'link' && child.mobileRoute,
-  ) as SidebarLinkNode[]
+  const isRoot = depth === 0
 
   return (
-    <div className="sidebar-nav-group sidebar-nav-group--root" ref={groupRef} style={style}>
+    <div
+      className={`sidebar-nav-group${isRoot ? ' sidebar-nav-group--root' : ' sidebar-nav-group--nested'}`}
+      ref={groupRef}
+      style={style}
+    >
       <button
         aria-expanded={isOpen}
-        className={`sidebar-nav-group__trigger${isOpen ? ' sidebar-nav-group__trigger--open' : ''}`}
-        onClick={() => toggleGroup(group.id)}
+        className={`sidebar-nav-group__trigger${isRoot ? '' : ' sidebar-nav-group__trigger--nested'}${isOpen ? ' sidebar-nav-group__trigger--open' : ''}`}
+        onClick={() => (isRoot ? toggleGroup(group.id) : toggleNested(group.id))}
         type="button"
       >
-        <Icon size={17} />
+        <Icon size={isRoot ? 17 : 16} />
         <span>{group.label}</span>
         <ChevronRight className="sidebar-nav-group__chevron" size={16} />
       </button>
@@ -101,16 +132,38 @@ function SidebarNavGroup({
         className={`sidebar-nav-group__children${isOpen ? ' sidebar-nav-group__children--open' : ''}`}
       >
         <div className="sidebar-nav-group__children-inner">
-          {visibleLinks.map((child, index) => (
-            <SidebarNavLink
-              active={child.mobileRoute === activeRoute}
-              index={index}
-              isOpen={isOpen}
-              item={child}
-              key={child.id}
-              onNavigate={onNavigate}
-            />
-          ))}
+          {group.children.map((child, index) => {
+            if (child.type === 'link' && child.mobileRoute) {
+              return (
+                <SidebarNavLink
+                  active={child.mobileRoute === activeRoute}
+                  index={index}
+                  isOpen={isOpen}
+                  item={child}
+                  key={child.id}
+                  onNavigate={onNavigate}
+                />
+              )
+            }
+
+            if (child.type === 'group') {
+              return (
+                <SidebarNavGroup
+                  activeRoute={activeRoute}
+                  depth={depth + 1}
+                  group={child}
+                  isOpen={nestedOpenIds.has(child.id)}
+                  key={child.id}
+                  nestedOpenIds={nestedOpenIds}
+                  onNavigate={onNavigate}
+                  toggleGroup={toggleGroup}
+                  toggleNested={toggleNested}
+                />
+              )
+            }
+
+            return null
+          })}
         </div>
       </div>
     </div>
@@ -128,14 +181,33 @@ export function SidebarNavMenu({
   const tree = useMemo(() => buildMobileNavigation(permissions), [permissions])
   const groupRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
+  const rootGroups = useMemo(
+    () => tree.filter((node): node is SidebarGroupNode => node.type === 'group'),
+    [tree],
+  )
+
   const [openGroupId, setOpenGroupId] = useState<string | null>(() =>
     findActiveRootGroupId(tree, navUrl),
+  )
+  const [nestedOpenIds, setNestedOpenIds] = useState<ReadonlySet<string>>(() =>
+    new Set(collectActiveNestedGroupIds(rootGroups, activeRoute)),
   )
 
   useEffect(() => {
     const activeId = findActiveRootGroupId(tree, navUrl)
     if (activeId) setOpenGroupId(activeId)
   }, [navUrl, tree])
+
+  useEffect(() => {
+    const activeNested = collectActiveNestedGroupIds(rootGroups, activeRoute)
+    if (activeNested.length === 0) return
+    setNestedOpenIds((current) => {
+      if (activeNested.every((id) => current.has(id))) return current
+      const next = new Set(current)
+      for (const id of activeNested) next.add(id)
+      return next
+    })
+  }, [activeRoute, rootGroups])
 
   const scrollToGroup = useCallback(
     (groupId: string, delayMs = 220) => {
@@ -172,23 +244,32 @@ export function SidebarNavMenu({
     }
   }, [])
 
+  const toggleNested = useCallback((id: string) => {
+    setNestedOpenIds((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
   return (
     <nav aria-label="Menú de accesos" className="sidebar-nav-menu">
-      {tree.map((node, index) => {
-        if (node.type !== 'group') return null
-        return (
-          <SidebarNavGroup
-            activeRoute={activeRoute}
-            group={node}
-            groupRef={setGroupRef(node.id)}
-            isOpen={openGroupId === node.id}
-            key={node.id}
-            onNavigate={onNavigate}
-            toggleGroup={toggleGroup}
-            style={{ '--sidebar-group-delay': `${index * 60}ms` } as CSSProperties}
-          />
-        )
-      })}
+      {rootGroups.map((node, index) => (
+        <SidebarNavGroup
+          activeRoute={activeRoute}
+          depth={0}
+          group={node}
+          groupRef={setGroupRef(node.id)}
+          isOpen={openGroupId === node.id}
+          key={node.id}
+          nestedOpenIds={nestedOpenIds}
+          onNavigate={onNavigate}
+          toggleGroup={toggleGroup}
+          toggleNested={toggleNested}
+          style={{ '--sidebar-group-delay': `${index * 60}ms` } as CSSProperties}
+        />
+      ))}
     </nav>
   )
 }

@@ -14,6 +14,9 @@
   --gelia-page-shell-padding-block: 1.4rem;
   --gelia-page-shell-padding-inline: 1rem;
   --gelia-mobile-nav-offset: 6.5rem;
+  --gelia-modal-z-index: 240;
+  --gelia-modal-clearance-bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
+  --gelia-modal-clearance-top: max(.5rem, env(safe-area-inset-top, 0px));
   --gelia-sidebar-menu-width: 24rem;
   --bg: #ffffff;
   --surface: #ffffff;
@@ -264,6 +267,9 @@ svg:not(.gelia-logo) { width: 1.25rem; height: 1.25rem; }
 .sidebar-nav-header { display: block; padding: 0 .15rem .35rem; color: var(--color-primario); font-size: .67rem; font-weight: 900; letter-spacing: .17em; }
 .sidebar-nav-group__trigger { width: 100%; border: 0; display: flex; align-items: center; gap: .6rem; padding: .75rem .9rem; border-radius: 1rem; text-align: left; cursor: pointer; color: var(--text); background: var(--menu-item-hover); font-size: .74rem; font-weight: 900; letter-spacing: -.01em; transition: background-color .22s ease, color .22s ease; }
 .sidebar-nav-group__trigger--open { background: color-mix(in srgb, var(--color-primario) 12%, var(--menu-item-hover)); }
+.sidebar-nav-group--nested { margin-inline: .15rem 0; }
+.sidebar-nav-group__trigger--nested { padding: .62rem .75rem; border-radius: .85rem; font-size: .7rem; background: transparent; }
+.sidebar-nav-group__trigger--nested.sidebar-nav-group__trigger--open { background: color-mix(in srgb, var(--color-primario) 8%, transparent); }
 .sidebar-nav-group__trigger svg:last-child { margin-left: auto; color: var(--muted); }
 .sidebar-nav-group__chevron { transition: transform .32s cubic-bezier(.34,1.2,.64,1); }
 .sidebar-nav-group__trigger--open .sidebar-nav-group__chevron { transform: rotate(90deg); color: var(--color-primario); }
@@ -319,7 +325,7 @@ svg:not(.gelia-logo) { width: 1.25rem; height: 1.25rem; }
 .spin { animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes loading { from { transform: translateX(-120%); } to { transform: translateX(260%); } }
-@keyframes page-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes page-in { from { opacity: 0; } to { opacity: 1; } }
 
 @media (min-width: 760px) {
   .login-screen { grid-template-columns: minmax(22rem, .9fr) minmax(28rem, 1.1fr); }

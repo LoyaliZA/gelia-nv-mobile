@@ -1,10 +1,54 @@
-import { Briefcase, Home, LayoutDashboard, Search } from 'lucide-react'
+import { Briefcase, Home, LayoutDashboard, Package, Search, Store, Ticket, User } from 'lucide-react'
 import { puedeConsultarClientesMovil } from '../features/clientes/mobileClienteAccess'
-import type { SidebarNode } from './navTypes'
+import {
+  puedeAbrirRecepcionTurnosMovil,
+  puedeVerResguardosMovil,
+} from '../features/puntoVenta/puntoVentaAccess'
+import type { SidebarLinkNode, SidebarNode } from './navTypes'
 
-/** Navegación móvil: solo opciones disponibles en la app. */
+/** Navegación móvil: módulo principal, submódulo y opción, como el sidebar profesional. */
 export function buildMobileNavigation(permissions: string[] = []): SidebarNode[] {
-  const showClientes = puedeConsultarClientesMovil(permissions)
+  const comercialLinks: SidebarLinkNode[] = []
+  const puntoVentaLinks: SidebarLinkNode[] = []
+
+  if (puedeConsultarClientesMovil(permissions)) {
+    comercialLinks.push({
+      type: 'link',
+      id: 'consultar_clientes',
+      label: 'Consultar Clientes',
+      icon: Search,
+      href: () => '/consultar-clientes',
+      active: (url) => url.startsWith('/consultar-clientes'),
+      mobileEnabled: true,
+      mobileRoute: 'clientes',
+    })
+  }
+
+  if (puedeVerResguardosMovil(permissions)) {
+    puntoVentaLinks.push({
+      type: 'link',
+      id: 'resguardos_pdv',
+      label: 'Resguardos',
+      icon: Package,
+      href: () => '/punto-venta/resguardos',
+      active: (url) => url.startsWith('/punto-venta/resguardos'),
+      mobileEnabled: true,
+      mobileRoute: 'resguardos',
+    })
+  }
+
+  if (puedeAbrirRecepcionTurnosMovil(permissions)) {
+    puntoVentaLinks.push({
+      type: 'link',
+      id: 'turnos_recepcion',
+      label: 'Recepción turnos',
+      icon: Ticket,
+      href: () => '/punto-venta/turnos/recepcion',
+      active: (url) => url.startsWith('/punto-venta/turnos'),
+      mobileEnabled: true,
+      mobileRoute: 'turnos',
+    })
+  }
 
   return [
     {
@@ -26,7 +70,7 @@ export function buildMobileNavigation(permissions: string[] = []): SidebarNode[]
         },
       ],
     },
-    ...(showClientes ? [{
+    ...(comercialLinks.length > 0 ? [{
       type: 'group' as const,
       id: 'operaciones',
       label: 'Operaciones',
@@ -34,16 +78,20 @@ export function buildMobileNavigation(permissions: string[] = []): SidebarNode[]
       defaultOpen: true,
       children: [
         {
-          type: 'link' as const,
-          id: 'consultar_clientes',
-          label: 'Consultar Clientes',
-          icon: Search,
-          href: () => '/consultar-clientes',
-          active: (url: string) => url.startsWith('/consultar-clientes'),
-          mobileEnabled: true,
-          mobileRoute: 'clientes' as const,
+          type: 'group' as const,
+          id: 'comercial',
+          label: 'Comercial',
+          icon: User,
+          children: comercialLinks,
         },
       ],
+    }] : []),
+    ...(puntoVentaLinks.length > 0 ? [{
+      type: 'group' as const,
+      id: 'punto_venta',
+      label: 'Punto de venta',
+      icon: Store,
+      children: puntoVentaLinks,
     }] : []),
   ]
 }

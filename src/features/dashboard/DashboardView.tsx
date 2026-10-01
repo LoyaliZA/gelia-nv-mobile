@@ -1,4 +1,4 @@
-import { Layers, Search } from 'lucide-react'
+import { Briefcase, Package, Search, Store, Ticket } from 'lucide-react'
 import type { AppRoute } from '../../app/routes'
 import { DashboardMobileView } from '../../components/dashboard/DashboardMobileView'
 import { DashboardModuleCard } from '../../components/dashboard/DashboardModuleCard'
@@ -6,6 +6,10 @@ import { DashboardPanel } from '../../components/dashboard/DashboardPanel'
 import type { MobileSession } from '../auth/auth.types'
 import { ClienteSyncStatus } from '../clientes/ClienteSyncStatus'
 import { puedeConsultarClientesMovil } from '../clientes/mobileClienteAccess'
+import {
+  puedeAbrirRecepcionTurnosMovil,
+  puedeVerResguardosMovil,
+} from '../puntoVenta/puntoVentaAccess'
 
 interface DashboardViewProps {
   onNavigate: (route: AppRoute) => void
@@ -14,22 +18,57 @@ interface DashboardViewProps {
 
 export function DashboardView({ onNavigate, session }: DashboardViewProps) {
   const showClientes = puedeConsultarClientesMovil(session.permissions)
+  const showResguardos = puedeVerResguardosMovil(session.permissions)
+  const showTurnos = puedeAbrirRecepcionTurnosMovil(session.permissions)
+  const hasPuntoVenta = showResguardos || showTurnos
 
   const sections = [
     ...(showClientes ? [{
       id: 'operaciones',
       content: (
-        <DashboardPanel icon={Layers} title="Funciones Operativas_">
-          <div className="dashboard-panel-cards__grid dashboard-panel-cards__grid--single">
+        <DashboardPanel icon={Briefcase} title="Operaciones_">
+          <div className="dashboard-panel-cards__grid">
             <DashboardModuleCard
               borderStyle={{ borderColor: 'var(--color-primario)' }}
               icon={Search}
               iconStyle={{ color: 'var(--color-primario)' }}
               iconWrapStyle={{ backgroundColor: 'color-mix(in srgb, var(--color-primario) 15%, transparent)' }}
               onClick={() => onNavigate('clientes')}
-              subtitle="Verifica identidad y datos por número de cliente."
+              subtitle="Verifica identidad y datos por número o nombre."
               title="Consultar Clientes"
             />
+          </div>
+        </DashboardPanel>
+      ),
+    }] : []),
+    ...(hasPuntoVenta ? [{
+      id: 'punto_venta',
+      content: (
+        <DashboardPanel icon={Store} title="Punto de venta_">
+          <div className="dashboard-panel-cards__grid">
+            {showResguardos && (
+              <DashboardModuleCard
+                borderStyle={{ borderColor: 'var(--color-primario)' }}
+                icon={Package}
+                iconStyle={{ color: 'var(--color-primario)' }}
+                iconWrapStyle={{ backgroundColor: 'color-mix(in srgb, var(--color-primario) 15%, transparent)' }}
+                onClick={() => onNavigate('resguardos')}
+                subtitle="Recepción, custodia, detalle y entrega."
+                title="Resguardos"
+              />
+            )}
+
+            {showTurnos && (
+              <DashboardModuleCard
+                borderStyle={{ borderColor: 'var(--color-primario)' }}
+                icon={Ticket}
+                iconStyle={{ color: 'var(--color-primario)' }}
+                iconWrapStyle={{ backgroundColor: 'color-mix(in srgb, var(--color-primario) 15%, transparent)' }}
+                onClick={() => onNavigate('turnos')}
+                subtitle="Alta y seguimiento de la fila de ventas."
+                title="Recepción turnos"
+              />
+            )}
           </div>
         </DashboardPanel>
       ),
@@ -44,6 +83,7 @@ export function DashboardView({ onNavigate, session }: DashboardViewProps) {
         <p>Accede a las herramientas operativas disponibles en la app móvil.</p>
         {showClientes ? <ClienteSyncStatus compact /> : null}
       </header>
+
       {sections.length > 0 ? (
         <DashboardMobileView sections={sections} />
       ) : (

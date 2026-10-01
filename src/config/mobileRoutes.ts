@@ -5,6 +5,8 @@ export function routeToNavUrl(route: AppRoute): string {
   const map: Record<AppRoute, string> = {
     inicio: '/dashboard',
     clientes: '/consultar-clientes',
+    resguardos: '/punto-venta/resguardos',
+    turnos: '/punto-venta/turnos/recepcion',
     perfil: '/perfil',
     preferencias: '/perfil/preferencias',
   }
@@ -12,12 +14,20 @@ export function routeToNavUrl(route: AppRoute): string {
 }
 
 /** IDs habilitados en la app móvil (sidebar legacy / catálogo). */
-const MOBILE_ENABLED_IDS = new Set(['dashboard', 'consultar_clientes', 'card_consultar_clientes'])
+const MOBILE_ENABLED_IDS = new Set([
+  'dashboard',
+  'consultar_clientes',
+  'card_consultar_clientes',
+  'resguardos_pdv',
+  'turnos_recepcion',
+])
 
 const MOBILE_ROUTE_BY_ID: Partial<Record<string, AppRoute>> = {
   dashboard: 'inicio',
   consultar_clientes: 'clientes',
   card_consultar_clientes: 'clientes',
+  resguardos_pdv: 'resguardos',
+  turnos_recepcion: 'turnos',
 }
 
 export function getMobileRouteForLink(id: string): AppRoute | null {

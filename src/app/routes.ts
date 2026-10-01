@@ -1,10 +1,18 @@
 import { useEffect, useState } from 'react'
 
-export type AppRoute = 'inicio' | 'clientes' | 'perfil' | 'preferencias'
+export type AppRoute =
+  | 'inicio'
+  | 'clientes'
+  | 'resguardos'
+  | 'turnos'
+  | 'perfil'
+  | 'preferencias'
 
 const ROUTES: Record<string, AppRoute> = {
   '#/inicio': 'inicio',
   '#/clientes': 'clientes',
+  '#/resguardos': 'resguardos',
+  '#/turnos': 'turnos',
   '#/perfil': 'perfil',
   '#/preferencias': 'preferencias',
 }
