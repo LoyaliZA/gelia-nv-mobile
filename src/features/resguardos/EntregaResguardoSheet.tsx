@@ -62,11 +62,18 @@ export function EntregaResguardoSheet({
   const [error, setError] = useState<string | null>(null)
   const archivoRef = useRef<HTMLInputElement | null>(null)
   const previewRef = useRef<string | null>(null)
+  const formularioInicializadoParaId = useRef<number | null>(null)
   const referencia = resguardo.referencia_cliente
     || (resguardo.cliente ? `#${resguardo.cliente.numero_cliente}` : 'Sin referencia')
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      formularioInicializadoParaId.current = null
+      return
+    }
+    if (formularioInicializadoParaId.current === resguardo.id) return
+    formularioInicializadoParaId.current = resguardo.id
+
     setRelacion(entregaEsTercero(resguardo) ? 'tercero' : 'titular')
     setNombreTercero(nombreTerceroRegistrado)
     setNombreManual('')
