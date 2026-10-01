@@ -34,6 +34,10 @@ export function entregaEsTercero(resguardo: Pick<ResguardoDetalle, 'envia_a_otra
   return Boolean(resguardo.envia_otra_persona?.trim())
 }
 
+function bultosEntregables(resguardo: Pick<ResguardoDetalle, 'bultos'>) {
+  return (resguardo.bultos ?? []).filter((bulto) => bulto.estado === 'en_custodia' || bulto.estado === 'recibido')
+}
+
 export function EntregaResguardoSheet({
   open,
   resguardo,
@@ -42,11 +46,13 @@ export function EntregaResguardoSheet({
   onSuccess,
 }: Props) {
   const signatureRef = useRef<SignaturePadHandle | null>(null)
-  const esTercero = entregaEsTercero(resguardo)
   const nombreCliente = nombreClienteResguardo(resguardo)
   const nombreTerceroRegistrado = (resguardo.envia_otra_persona || '').trim()
+  const entregables = bultosEntregables(resguardo)
+  const [relacion, setRelacion] = useState<'titular' | 'tercero'>(entregaEsTercero(resguardo) ? 'tercero' : 'titular')
   const [nombreTercero, setNombreTercero] = useState(nombreTerceroRegistrado)
   const [nombreManual, setNombreManual] = useState('')
+  const [bultoIds, setBultoIds] = useState<number[]>(() => entregables.map((bulto) => bulto.id))
   const [observaciones, setObservaciones] = useState('')
   const [fotoPaqueteAbierto, setFotoPaqueteAbierto] = useState<File | null>(null)
   const [previewAbierto, setPreviewAbierto] = useState<string | null>(null)
@@ -61,8 +67,10 @@ export function EntregaResguardoSheet({
 
   useEffect(() => {
     if (!open) return
+    setRelacion(entregaEsTercero(resguardo) ? 'tercero' : 'titular')
     setNombreTercero(nombreTerceroRegistrado)
     setNombreManual('')
+    setBultoIds(bultosEntregables(resguardo).map((bulto) => bulto.id))
     setObservaciones('')
     setFotoPaqueteAbierto(null)
     setFirmaPreview(null)
@@ -70,7 +78,7 @@ export function EntregaResguardoSheet({
     if (previewRef.current) URL.revokeObjectURL(previewRef.current)
     previewRef.current = null
     setPreviewAbierto(null)
-  }, [open, nombreTerceroRegistrado])
+  }, [open, nombreTerceroRegistrado, resguardo])
 
   useEffect(() => () => {
     if (previewRef.current) URL.revokeObjectURL(previewRef.current)
@@ -120,12 +128,18 @@ export function EntregaResguardoSheet({
 
   if (!open) return null
 
+  const esTercero = relacion === 'tercero'
   const faltaNombreCliente = !esTercero && !nombreCliente
   const nombreQuienRetira = (esTercero ? nombreTercero : (nombreCliente || nombreManual)).trim()
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (enviando) return
+
+    if (entregables.length > 0 && bultoIds.length === 0) {
+      setError('Selecciona al menos un bulto en custodia para entregar.')
+      return
+    }
 
     if (!nombreQuienRetira) {
       setError(esTercero
@@ -160,6 +174,7 @@ export function EntregaResguardoSheet({
         observaciones,
         firma,
         fotoPaqueteAbierto,
+        bultoIds,
       })
       await onSuccess()
       onClose()
@@ -196,11 +211,51 @@ export function EntregaResguardoSheet({
 
             <ContenidoResguardoPanel resguardo={resguardo} token={session.accessToken} />
 
+            {entregables.length > 0 && (
+              <fieldset className="pdv-form__bulto">
+                <legend className="pdv-form__bulto-title">Bultos a entregar</legend>
+                <p className="pdv-muted">
+                  {bultoIds.length < entregables.length
+                    ? 'La entrega quedará parcial.'
+                    : 'Se entregan todos los bultos en custodia.'}
+                </p>
+                {entregables.map((bulto) => {
+                  const marcado = bultoIds.includes(bulto.id)
+                  return (
+                    <label className="pdv-check-row" key={bulto.id}>
+                      <input
+                        checked={marcado}
+                        disabled={enviando}
+                        onChange={() => {
+                          setBultoIds((actual) => (
+                            marcado
+                              ? actual.filter((id) => id !== bulto.id)
+                              : [...actual, bulto.id]
+                          ))
+                        }}
+                        type="checkbox"
+                      />
+                      <span>{bulto.folio || `Bulto #${bulto.id}`} · {bulto.estado || 'en custodia'}</span>
+                    </label>
+                  )
+                })}
+              </fieldset>
+            )}
+
             <div className="pdv-selected-client">
               <div>
                 <span>Cliente del resguardo</span>
                 <strong>{nombreCliente || 'Sin nombre registrado'}</strong>
               </div>
+            </div>
+
+            <div className="pdv-segmented" role="group" aria-label="Quién recibe">
+              <button aria-pressed={!esTercero} disabled={enviando} onClick={() => setRelacion('titular')} type="button">
+                Cliente titular
+              </button>
+              <button aria-pressed={esTercero} disabled={enviando} onClick={() => setRelacion('tercero')} type="button">
+                Tercero
+              </button>
             </div>
 
             {esTercero ? (
@@ -216,7 +271,6 @@ export function EntregaResguardoSheet({
                     maxLength={255}
                     onChange={(event) => setNombreTercero(event.target.value)}
                     placeholder="Nombre de quien recibe"
-                    readOnly={Boolean(nombreTerceroRegistrado)}
                     value={nombreTercero}
                   />
                 </label>

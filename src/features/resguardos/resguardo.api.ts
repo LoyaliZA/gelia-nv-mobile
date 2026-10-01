@@ -5,12 +5,16 @@ import type {
   AltaResguardoInput,
   ConfirmarCustodiaInput,
   ProductoResguardo,
+  RegistrarIncidenciaInput,
   ResguardoBandeja,
   ResguardoCustodiaFormResponse,
   ResguardoDetalleResponse,
   ResguardoEntregaInput,
+  ResguardoEntregadoItem,
+  ResguardoEtiquetaResuelta,
   ResguardoListResponse,
   ResguardoPaso,
+  LaravelPaginator,
 } from './resguardo.types'
 
 interface ListFilters {
@@ -18,6 +22,7 @@ interface ListFilters {
   paso?: ResguardoPaso
   q?: string
   antiguedad?: string
+  estado?: string
   page?: number
   perPage?: number
 }
@@ -37,6 +42,7 @@ export function listarResguardos(session: MobileSession, filters: ListFilters) {
   }
   if (filters.q?.trim()) query.set('q', filters.q.trim())
   if (filters.antiguedad) query.set('antiguedad', filters.antiguedad)
+  if (filters.estado) query.set('estado', filters.estado)
 
   return apiRequest<ResguardoListResponse>(
     `/mobile/punto-venta/resguardos?${query.toString()}`,
@@ -180,7 +186,7 @@ export function entregarResguardo(
   if (input.observaciones?.trim()) {
     form.append('observaciones', input.observaciones.trim())
   }
-  input.bultoIds?.forEach((bultoId) => form.append('bulto_ids[]', String(bultoId)))
+  input.bultoIds.forEach((bultoId, indice) => form.append(`bulto_ids[${indice}]`, String(bultoId)))
 
   return apiFormRequest<{
     resguardo: { id: number; version: number; estado: string; estado_etiqueta: string }
@@ -191,6 +197,118 @@ export function entregarResguardo(
     {
       method: 'PUT',
       token: session.accessToken,
+    },
+  )
+}
+
+export function resolverEtiquetaResguardo(session: MobileSession, codigo: string) {
+  return apiRequest<ResguardoEtiquetaResuelta>(
+    `/mobile/punto-venta/resguardos/etiquetas/resolver/${encodeURIComponent(codigo.trim())}`,
+    auth(session),
+  )
+}
+
+export function listarEntregadosResguardo(session: MobileSession, filters: { q?: string; page?: number }) {
+  const query = new URLSearchParams()
+  query.set('page', String(filters.page ?? 1))
+  query.set('per_page', '15')
+  if (filters.q?.trim()) query.set('q', filters.q.trim())
+  return apiRequest<{ resguardos: LaravelPaginator<ResguardoEntregadoItem> }>(
+    `/mobile/punto-venta/resguardos/entregados?${query.toString()}`,
+    auth(session),
+  )
+}
+
+export function registrarIncidenciaResguardo(
+  session: MobileSession,
+  id: number,
+  version: number,
+  input: RegistrarIncidenciaInput,
+) {
+  const form = new FormData()
+  form.append('version', String(version))
+  form.append('idempotency_key', createIdempotencyKey('pdv:movil:inc', id))
+  form.append('tipo', input.tipo)
+  form.append('descripcion', input.descripcion.trim())
+  if (input.bulto && input.almacenId) {
+    form.append('bulto[folio]', input.bulto.folio.trim())
+    form.append('bulto[tipo]', input.bulto.tipo)
+    form.append('bulto[condicion]', input.bulto.condicion)
+    form.append('bulto[piezas]', String(input.bulto.piezas))
+    form.append('almacen_id', String(input.almacenId))
+  }
+  input.evidencias?.forEach((archivo, indice) => {
+    form.append(`evidencias[${indice}]`, archivo, archivo.name)
+  })
+
+  return apiFormRequest<{ incidencia: { id: number } }>(
+    `/mobile/punto-venta/resguardos/${id}/incidencias`,
+    form,
+    { method: 'POST', token: session.accessToken },
+  )
+}
+
+export function resolverIncidenciaResguardo(
+  session: MobileSession,
+  id: number,
+  incidenciaId: number,
+  version: number,
+  incidenciaVersion: number,
+  motivo: string,
+) {
+  return apiRequest<{ incidencia: { id: number } }>(
+    `/mobile/punto-venta/resguardos/${id}/incidencias/${incidenciaId}/resolver`,
+    {
+      method: 'PUT',
+      body: {
+        version,
+        incidencia_version: incidenciaVersion,
+        idempotency_key: createIdempotencyKey('pdv:movil:incres', incidenciaId),
+        motivo_resolucion: motivo.trim(),
+      },
+      ...auth(session),
+    },
+  )
+}
+
+export function confirmarDevolucionResguardo(
+  session: MobileSession,
+  id: number,
+  version: number,
+  motivo: string,
+  evidencias: File[] = [],
+) {
+  const form = new FormData()
+  form.append('version', String(version))
+  form.append('idempotency_key', createIdempotencyKey('pdv:movil:dev', id))
+  form.append('motivo', motivo.trim())
+  evidencias.forEach((archivo, indice) => {
+    form.append(`evidencias[${indice}]`, archivo, archivo.name)
+  })
+
+  return apiFormRequest<{ resguardo: { id: number; version: number; estado: string } }>(
+    `/mobile/punto-venta/resguardos/${id}/devolucion`,
+    form,
+    { method: 'PUT', token: session.accessToken },
+  )
+}
+
+export function reponerVencidoResguardo(
+  session: MobileSession,
+  id: number,
+  version: number,
+  motivo: string,
+) {
+  return apiRequest<{ resguardo: { id: number; version: number; estado: string } }>(
+    `/mobile/punto-venta/resguardos/${id}/reponer-vencido`,
+    {
+      method: 'PUT',
+      body: {
+        version,
+        idempotency_key: createIdempotencyKey('pdv:movil:rep', id),
+        motivo: motivo.trim(),
+      },
+      ...auth(session),
     },
   )
 }

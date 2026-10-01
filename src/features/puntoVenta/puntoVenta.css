@@ -119,6 +119,33 @@
   opacity: .75;
 }
 
+.pdv-filter-row {
+  margin-top: .75rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: .65rem;
+}
+
+.pdv-filter-row label {
+  display: grid;
+  gap: .3rem;
+  color: var(--muted);
+  font-size: .62rem;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.pdv-filter-row select {
+  min-height: 2.55rem;
+  padding: .55rem .7rem;
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: .85rem;
+  font-weight: 700;
+}
+
 .pdv-segmented {
   margin-top: .65rem;
   display: grid;
@@ -623,6 +650,32 @@
   border: 1px solid var(--border);
   border-radius: .85rem;
   background: var(--surface-soft);
+}
+
+.pdv-form .pdv-check-row {
+  display: flex;
+  grid-template-columns: none;
+  align-items: center;
+  gap: .55rem;
+  color: var(--text);
+  font-size: .85rem;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.pdv-check-row {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  color: var(--text);
+  font-size: .85rem;
+  font-weight: 700;
+}
+
+.pdv-check-row input {
+  width: 1.1rem;
+  height: 1.1rem;
 }
 
 .pdv-form__bulto-title {

@@ -17,7 +17,10 @@ import {
 } from './resguardo.api'
 import type { ResguardoDetalleResponse } from './resguardo.types'
 import { CustodiaResguardoSheet } from './CustodiaResguardoSheet'
+import { DevolucionResguardoSheet } from './DevolucionResguardoSheet'
 import { entregaEsTercero, EntregaResguardoSheet, nombreClienteResguardo } from './EntregaResguardoSheet'
+import { IncidenciasResguardoPanel } from './IncidenciasResguardoPanel'
+import { ReponerVencidoSheet } from './ReponerVencidoSheet'
 import { ContenidoResguardoPanel } from './ContenidoResguardoPanel'
 import { ModalPortal } from '../../components/ui/ModalPortal'
 
@@ -56,6 +59,8 @@ export function ResguardoDetailSheet({
   const [accionError, setAccionError] = useState<string | null>(null)
   const [entregaOpen, setEntregaOpen] = useState(false)
   const [custodiaOpen, setCustodiaOpen] = useState(false)
+  const [devolucionOpen, setDevolucionOpen] = useState(false)
+  const [reponerOpen, setReponerOpen] = useState(false)
 
   const resguardo = detail?.resguardo
   const tienePermiso = (clave: boolean | undefined, permiso: string) => Boolean(
@@ -77,6 +82,17 @@ export function ResguardoDetailSheet({
     admiteConfirmacionCustodia
     && permisoConfirmarCustodia
     && session.permissions.includes(PDV_PERMISSION.resguardosConfirmarCustodia),
+  )
+  const puedeDevolver = Boolean(
+    resguardo?.estado === 'en_custodia'
+    && resguardo.bultos.some((bulto) => bulto.estado === 'recibido')
+    && tienePermiso(contexto?.permisos.resguardos_confirmar_devolucion, PDV_PERMISSION.resguardosConfirmarDevolucion),
+  )
+  const puedeReponer = Boolean(
+    resguardo?.estado === 'en_custodia'
+    && resguardo.clasificaciones?.vencido
+    && !resguardo.vencido_repuesto_at
+    && tienePermiso(contexto?.permisos.resguardos_reponer_vencido, PDV_PERMISSION.resguardosReponerVencido),
   )
   const puedeEntregar = Boolean(
     resguardo
@@ -151,15 +167,31 @@ export function ResguardoDetailSheet({
                 <div><dt>Pedido</dt><dd>{resguardo.pedido?.folio || resguardo.pedido?.folio_remision || '—'}</dd></div>
                 <div><dt>Salida CEDIS</dt><dd>{fecha(resguardo.salida_cedis_at)}</dd></div>
                 <div><dt>Recepción física</dt><dd>{fecha(resguardo.recepcion_fisica_at)}</dd></div>
+                <div><dt>Custodia confirmada</dt><dd>{fecha(resguardo.custodia_confirmada_at)}</dd></div>
+                <div><dt>Entrega completada</dt><dd>{fecha(resguardo.entrega_completada_at)}</dd></div>
                 <div>
                   <dt>Quien recibe</dt>
                   <dd>
-                    {entregaEsTercero(resguardo)
-                      ? (resguardo.envia_otra_persona?.trim() || 'Tercero')
-                      : (nombreClienteResguardo(resguardo) || 'Cliente titular')}
+                    {resguardo.ultima_entrega?.nombre_quien_retira
+                      || (entregaEsTercero(resguardo)
+                        ? (resguardo.envia_otra_persona?.trim() || 'Tercero')
+                        : (nombreClienteResguardo(resguardo) || 'Cliente titular'))}
+                    {resguardo.ultima_entrega?.relacion_etiqueta
+                      ? ` · ${resguardo.ultima_entrega.relacion_etiqueta}`
+                      : ''}
                   </dd>
                 </div>
               </dl>
+
+              {resguardo.entrega_bloqueada && (
+                <section className="pdv-state-card pdv-state-card--error">
+                  <p>
+                    {resguardo.cancelacion_recibida
+                      ? 'Pedido cancelado. La entrega está bloqueada y el paquete debe devolverse al origen.'
+                      : 'La entrega de este resguardo está bloqueada.'}
+                  </p>
+                </section>
+              )}
 
               {resguardo.clasificaciones_etiquetas?.length > 0 && (
                 <div className="pdv-chip-row">
@@ -174,6 +206,13 @@ export function ResguardoDetailSheet({
                 resguardo={resguardo}
                 timeline={detail.timeline}
                 token={session.accessToken}
+              />
+
+              <IncidenciasResguardoPanel
+                almacenes={detail.almacenes ?? []}
+                onChanged={onChanged}
+                resguardo={resguardo}
+                session={session}
               />
 
               <section className="pdv-detail-section">
@@ -258,6 +297,16 @@ export function ResguardoDetailSheet({
                     <PackageCheck /> Registrar entrega
                   </button>
                 )}
+                {puedeDevolver && (
+                  <button className="secondary-button pdv-action-button" onClick={() => setDevolucionOpen(true)} type="button">
+                    Confirmar devolución
+                  </button>
+                )}
+                {puedeReponer && (
+                  <button className="secondary-button pdv-action-button" onClick={() => setReponerOpen(true)} type="button">
+                    Reponer vencido
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -281,6 +330,22 @@ export function ResguardoDetailSheet({
             open={entregaOpen}
             resguardo={resguardo}
             session={session}
+          />
+          <DevolucionResguardoSheet
+            onClose={() => setDevolucionOpen(false)}
+            onSuccess={onChanged}
+            open={devolucionOpen}
+            resguardoId={resguardo.id}
+            session={session}
+            version={resguardo.version}
+          />
+          <ReponerVencidoSheet
+            onClose={() => setReponerOpen(false)}
+            onSuccess={onChanged}
+            open={reponerOpen}
+            resguardoId={resguardo.id}
+            session={session}
+            version={resguardo.version}
           />
         </>
       )}

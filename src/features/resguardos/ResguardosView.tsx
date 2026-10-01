@@ -13,15 +13,22 @@ import { SucursalActivaCard } from '../puntoVenta/SucursalActivaCard'
 import { PDV_PERMISSION, puedeConfirmarCustodiaResguardo } from '../puntoVenta/puntoVentaAccess'
 import { mensajeErrorPdv } from '../puntoVenta/puntoVenta.errors'
 import { usePuntoVenta } from '../puntoVenta/usePuntoVenta'
-import { listarResguardos, obtenerDetalleResguardo } from './resguardo.api'
+import {
+  confirmarRecepcionResguardo,
+  listarResguardos,
+  obtenerDetalleResguardo,
+  resolverEtiquetaResguardo,
+} from './resguardo.api'
 import type {
   ResguardoBandeja,
   ResguardoDetalleResponse,
   ResguardoListItem,
   ResguardoListResponse,
+  ResguardoEtiquetaResuelta,
   ResguardoPaso,
 } from './resguardo.types'
 import { AltaResguardoSheet } from './AltaResguardoSheet'
+import { HistorialEntregadosSheet } from './HistorialEntregadosSheet'
 import { ResguardoDetailSheet } from './ResguardoDetailSheet'
 
 interface Props {
@@ -33,6 +40,22 @@ const BANDEJAS: Array<{ value: ResguardoBandeja; label: string }> = [
   { value: 'en_custodia', label: 'En custodia' },
   { value: 'incidencias', label: 'Incidencias' },
 ]
+
+const ESTADOS: Array<{ value: string; label: string }> = [
+  { value: 'pendiente_recepcion', label: 'Pendiente de recepción' },
+  { value: 'recibido', label: 'Recibido' },
+  { value: 'en_recepcion', label: 'En recepción' },
+  { value: 'en_custodia', label: 'En custodia' },
+  { value: 'entregado', label: 'Entregado' },
+  { value: 'devuelto', label: 'Devuelto' },
+]
+
+function fechaCorta(value?: string | null) {
+  if (!value) return null
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(parsed)
+}
 
 function referencia(item: ResguardoListItem) {
   return item.snapshot_folio
@@ -51,6 +74,14 @@ export function ResguardosView({ session }: Props) {
   const [paso, setPaso] = useState<ResguardoPaso>('gerente')
   const [query, setQuery] = useState('')
   const [appliedQuery, setAppliedQuery] = useState('')
+  const [antiguedad, setAntiguedad] = useState('')
+  const [estado, setEstado] = useState('')
+  const [codigo, setCodigo] = useState('')
+  const [escaneo, setEscaneo] = useState<ResguardoEtiquetaResuelta | null>(null)
+  const [escaneoError, setEscaneoError] = useState<string | null>(null)
+  const [escaneando, setEscaneando] = useState(false)
+  const [confirmandoEscaneo, setConfirmandoEscaneo] = useState(false)
+  const [historialOpen, setHistorialOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [data, setData] = useState<ResguardoListResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -77,6 +108,29 @@ export function ResguardosView({ session }: Props) {
     contexto?.permisos.resguardos_confirmar_custodia ?? puedeConfirmarCustodiaResguardo(session.permissions),
     PDV_PERMISSION.resguardosConfirmarCustodia,
   )
+  const puedeVerRezagados = tienePermiso(contexto?.permisos.resguardos_ver_rezagados, PDV_PERMISSION.resguardosVerRezagados)
+  const puedeVerVencidos = tienePermiso(contexto?.permisos.resguardos_ver_vencidos, PDV_PERMISSION.resguardosVerVencidos)
+  const puedeHistorial = tienePermiso(
+    contexto?.permisos.resguardos_ver_historial_entregas,
+    PDV_PERMISSION.resguardosVerHistorialEntregas,
+  )
+  const puedeConfirmarLlegada = tienePermiso(
+    contexto?.permisos.resguardos_confirmar_llegada,
+    PDV_PERMISSION.resguardosConfirmarLlegada,
+  )
+  const antiguedadConsulta = bandeja === 'por_recibir'
+    ? (puedeVerRezagados && antiguedad === 'rezagado' ? 'rezagado' : undefined)
+    : bandeja === 'en_custodia'
+      ? (antiguedad === 'proximo_a_vencer' || (antiguedad === 'vencido' && puedeVerVencidos) ? antiguedad : undefined)
+      : undefined
+  const opcionesAntiguedad = bandeja === 'por_recibir'
+    ? (puedeVerRezagados ? [{ value: 'rezagado', label: 'Rezagado' }] : [])
+    : bandeja === 'en_custodia'
+      ? [
+          { value: 'proximo_a_vencer', label: 'Próximo a vencer' },
+          ...(puedeVerVencidos ? [{ value: 'vencido', label: 'Vencido' }] : []),
+        ]
+      : []
   const pasoConsulta: ResguardoPaso | undefined = puedePasoGerencia && puedePasoRecepcion
     ? paso
     : puedePasoGerencia
@@ -99,6 +153,8 @@ export function ResguardosView({ session }: Props) {
         bandeja,
         paso: bandeja === 'por_recibir' ? pasoConsulta : undefined,
         q: appliedQuery,
+        antiguedad: antiguedadConsulta,
+        estado: bandeja === 'por_recibir' ? undefined : estado || undefined,
         page,
         perPage: 15,
       })
@@ -108,7 +164,7 @@ export function ResguardosView({ session }: Props) {
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [appliedQuery, bandeja, page, pasoConsulta, permiso, session, sucursalId])
+  }, [antiguedadConsulta, appliedQuery, bandeja, estado, page, pasoConsulta, permiso, session, sucursalId])
 
   useEffect(() => {
     void load()
@@ -153,6 +209,44 @@ export function ResguardosView({ session }: Props) {
     setAppliedQuery(query.trim())
   }
 
+  const buscarCodigo = async (event: FormEvent) => {
+    event.preventDefault()
+    const valor = codigo.trim()
+    if (!valor || escaneando) return
+    setEscaneando(true)
+    setEscaneoError(null)
+    setEscaneo(null)
+    try {
+      setEscaneo(await resolverEtiquetaResguardo(session, valor))
+    } catch (err) {
+      setEscaneoError(mensajeErrorPdv(err, 'No se encontró un resguardo con esa etiqueta.'))
+    } finally {
+      setEscaneando(false)
+    }
+  }
+
+  const confirmarDesdeEtiqueta = async () => {
+    if (!escaneo || confirmandoEscaneo) return
+    setConfirmandoEscaneo(true)
+    setEscaneoError(null)
+    try {
+      const detalle = await obtenerDetalleResguardo(session, escaneo.resguardo_id)
+      if (detalle.resguardo.admite_recepcion && puedeConfirmarLlegada) {
+        await confirmarRecepcionResguardo(session, detalle.resguardo.id, detalle.resguardo.version)
+        setEscaneo(null)
+        setCodigo('')
+        await load(true)
+        return
+      }
+      setDetail(detalle)
+      setDetailId(detalle.resguardo.id)
+    } catch (err) {
+      setEscaneoError(mensajeErrorPdv(err, 'No se pudo confirmar la recepción.'))
+    } finally {
+      setConfirmandoEscaneo(false)
+    }
+  }
+
   const paginator = data?.resguardos
   const items = paginator?.data ?? []
 
@@ -166,11 +260,20 @@ export function ResguardosView({ session }: Props) {
 
       <SucursalActivaCard />
 
-      {puedeAltaManual && (
-        <button className="primary-button" onClick={() => setAltaOpen(true)} type="button">
-          Registrar recepción
-          <Camera size={18} />
-        </button>
+      {(puedeAltaManual || puedeHistorial) && (
+        <div className="pdv-action-stack">
+          {puedeAltaManual && (
+            <button className="primary-button" onClick={() => setAltaOpen(true)} type="button">
+              Registrar recepción
+              <Camera size={18} />
+            </button>
+          )}
+          {puedeHistorial && (
+            <button className="secondary-button" onClick={() => setHistorialOpen(true)} type="button">
+              Historial de entregas
+            </button>
+          )}
+        </div>
       )}
 
       {contexto && !permiso && (
@@ -222,6 +325,86 @@ export function ResguardosView({ session }: Props) {
               />
               <button className="secondary-button" type="submit">Buscar</button>
             </form>
+
+            {(opcionesAntiguedad.length > 0 || bandeja !== 'por_recibir') && (
+              <div className="pdv-filter-row">
+                {opcionesAntiguedad.length > 0 && (
+                  <label>
+                    Antigüedad
+                    <select
+                      onChange={(event) => {
+                        setAntiguedad(event.target.value)
+                        setPage(1)
+                      }}
+                      value={opcionesAntiguedad.some((opcion) => opcion.value === antiguedad) ? antiguedad : ''}
+                    >
+                      <option value="">Todas</option>
+                      {opcionesAntiguedad.map((opcion) => (
+                        <option key={opcion.value} value={opcion.value}>{opcion.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                {bandeja !== 'por_recibir' && (
+                  <label>
+                    Estado
+                    <select
+                      onChange={(event) => {
+                        setEstado(event.target.value)
+                        setPage(1)
+                      }}
+                      value={estado}
+                    >
+                      <option value="">Todos</option>
+                      {ESTADOS.map((opcion) => (
+                        <option key={opcion.value} value={opcion.value}>{opcion.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </div>
+            )}
+
+            {bandeja === 'por_recibir' && (
+              <form className="pdv-search" onSubmit={(event) => void buscarCodigo(event)}>
+                <Search size={17} />
+                <input
+                  onChange={(event) => setCodigo(event.target.value)}
+                  placeholder="Código de etiqueta"
+                  value={codigo}
+                />
+                <button className="secondary-button" disabled={escaneando} type="submit">
+                  {escaneando ? 'Buscando…' : 'Etiqueta'}
+                </button>
+              </form>
+            )}
+            {escaneoError && <p className="form-error" role="alert">{escaneoError}</p>}
+            {escaneo && (
+              <div className="pdv-selected-client">
+                <div>
+                  <span>{escaneo.resguardo_folio || `Resguardo #${escaneo.resguardo_id}`}</span>
+                  <strong>{escaneo.folio || escaneo.codigo_etiqueta}</strong>
+                  <p>{escaneo.estado_resguardo}</p>
+                </div>
+                <div className="pdv-action-stack">
+                  {escaneo.estado_resguardo === 'pendiente_recepcion' && puedeConfirmarLlegada && (
+                    <button className="primary-button" disabled={confirmandoEscaneo} onClick={() => void confirmarDesdeEtiqueta()} type="button">
+                      Confirmar recepción
+                    </button>
+                  )}
+                  <button
+                    className="secondary-button"
+                    onClick={() => {
+                      setDetail(null)
+                      setDetailId(escaneo.resguardo_id)
+                    }}
+                    type="button"
+                  >
+                    Ver detalle
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
 
           {error && (
@@ -274,6 +457,11 @@ export function ResguardosView({ session }: Props) {
                       <span>{item.cantidad_bultos_recibida}/{item.cantidad_bultos_esperada} bultos</span>
                       {item.incidencias_abiertas_count > 0 && <span>{item.incidencias_abiertas_count} incidencia(s)</span>}
                     </div>
+                    {(bandeja === 'por_recibir' ? item.fecha_limite_rezago : item.fecha_limite_custodia) && (
+                      <span className="pdv-muted">
+                        {bandeja === 'por_recibir' ? 'Límite de rezago' : 'Límite de custodia'}: {fechaCorta(bandeja === 'por_recibir' ? item.fecha_limite_rezago : item.fecha_limite_custodia)}
+                      </span>
+                    )}
                     {item.clasificaciones_etiquetas?.length > 0 && (
                       <div className="pdv-chip-row">
                         {item.clasificaciones_etiquetas.map((tag) => <span className="pdv-alert-chip" key={tag}>{tag}</span>)}
@@ -321,6 +509,18 @@ export function ResguardosView({ session }: Props) {
             setPage(1)
             return load(true)
           }}
+        />
+      )}
+
+      {historialOpen && (
+        <HistorialEntregadosSheet
+          onClose={() => setHistorialOpen(false)}
+          onOpen={(id) => {
+            setHistorialOpen(false)
+            setDetail(null)
+            setDetailId(id)
+          }}
+          session={session}
         />
       )}
 

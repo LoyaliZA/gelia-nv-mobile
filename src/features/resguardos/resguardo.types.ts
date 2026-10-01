@@ -138,7 +138,8 @@ export interface ResguardoDetalle extends ResguardoListItem {
   devolucion_confirmada_at?: string | null
   cancelacion_recibida?: boolean
   bultos: ResguardoBulto[]
-  incidencias: Array<Record<string, unknown>>
+  incidencias: ResguardoIncidencia[]
+  ultima_entrega?: ResguardoUltimaEntrega | null
   registro_manual?: ResguardoRegistroManual | null
   pedido_revision?: ResguardoPedidoRevision | null
   bultos_empaque_cedis?: ResguardoBultoEmpaque[]
@@ -161,6 +162,7 @@ export interface ResguardoTimelineItem {
 export interface ResguardoDetalleResponse {
   resguardo: ResguardoDetalle
   timeline: ResguardoTimelineItem[]
+  almacenes?: ResguardoAlmacenCustodia[]
 }
 
 export interface ResguardoEntregaInput {
@@ -169,7 +171,61 @@ export interface ResguardoEntregaInput {
   observaciones?: string
   firma: Blob
   fotoPaqueteAbierto: File
-  bultoIds?: number[]
+  bultoIds: number[]
+}
+
+export interface ResguardoUltimaEntrega {
+  id: number
+  relacion?: string | null
+  relacion_etiqueta?: string | null
+  nombre_quien_retira?: string | null
+  entregado_at?: string | null
+}
+
+export interface ResguardoIncidencia {
+  id: number
+  tipo?: string | null
+  tipo_etiqueta?: string | null
+  estado?: string | null
+  estado_etiqueta?: string | null
+  descripcion?: string | null
+  bulto_id?: number | null
+  motivo_resolucion?: string | null
+  version?: number
+  reportado_at?: string | null
+}
+
+export interface RegistrarIncidenciaInput {
+  tipo: 'folio_no_encontrado' | 'dano' | 'faltante'
+  descripcion: string
+  evidencias?: File[]
+  bulto?: {
+    folio: string
+    tipo: string
+    condicion: string
+    piezas: number
+  }
+  almacenId?: number
+}
+
+export interface ResguardoEtiquetaResuelta {
+  codigo_etiqueta: string
+  bulto_id: number
+  folio: string | null
+  tipo: string | null
+  resguardo_id: number
+  resguardo_folio: string | null
+  estado_resguardo: string
+}
+
+export interface ResguardoEntregadoItem {
+  id: number
+  snapshot_folio?: string | null
+  snapshot_cliente_nombre?: string | null
+  referencia_cliente?: string | null
+  entrega_completada_at?: string | null
+  cantidad_bultos_esperada?: number
+  ultima_entrega?: ResguardoUltimaEntrega | null
 }
 
 export interface ProductoResguardo {

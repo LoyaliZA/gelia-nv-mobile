@@ -12,6 +12,14 @@ export interface PdvPermisos {
   resguardos_confirmar_custodia: boolean
   resguardos_entregar: boolean
   resguardos_ver_rezagados: boolean
+  resguardos_ver_vencidos: boolean
+  resguardos_incidencia_folio: boolean
+  resguardos_incidencia_dano: boolean
+  resguardos_incidencia_faltante: boolean
+  resguardos_autorizar_entrega_incidencia: boolean
+  resguardos_confirmar_devolucion: boolean
+  resguardos_reponer_vencido: boolean
+  resguardos_ver_historial_entregas: boolean
   turnos_ver: boolean
   turnos_alta: boolean
 }
