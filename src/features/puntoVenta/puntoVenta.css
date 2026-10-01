@@ -65,7 +65,8 @@
 .pdv-form input,
 .pdv-form textarea,
 .pdv-search input,
-.pdv-client-search input {
+.pdv-client-search input,
+.pdv-filter-row select {
   width: 100%;
   min-height: 2.7rem;
   border: 1px solid var(--border);
@@ -74,6 +75,17 @@
   color: var(--text);
   background: var(--surface-soft);
   font: inherit;
+}
+
+.pdv-sucursal-card select:focus,
+.pdv-form select:focus,
+.pdv-form input:focus,
+.pdv-form textarea:focus,
+.pdv-search input:focus,
+.pdv-client-search input:focus,
+.pdv-filter-row select:focus {
+  border-color: var(--color-primario);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primario) 14%, transparent);
 }
 
 .pdv-sucursal-card select {
@@ -144,6 +156,7 @@
   letter-spacing: 0;
   font-size: .85rem;
   font-weight: 700;
+  cursor: pointer;
 }
 
 .pdv-segmented {
@@ -172,6 +185,20 @@
   min-width: 0;
   padding: .65rem .75rem;
   font-size: .78rem;
+}
+
+.pdv-search .secondary-button {
+  width: auto;
+  min-height: 2.7rem;
+  padding: 0 .9rem;
+  border: 1px solid var(--border);
+  border-radius: .85rem;
+  color: var(--text);
+  background: var(--surface-soft);
+  font-size: .68rem;
+  font-weight: 900;
+  letter-spacing: .04em;
+  white-space: nowrap;
 }
 
 .pdv-state-card {

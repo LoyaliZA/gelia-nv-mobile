@@ -62,7 +62,14 @@ export function MobileAppLayout({
 
   return (
     <div className="app-shell" data-sidebar-layout="mobile-bottom">
-      <main className="app-content">{children}</main>
+      <main className="app-content">
+        {session.es_demo && (
+          <p className="demo-banner" role="status">
+            Cuenta de demostración. Los movimientos quedan en un entorno de prueba.
+          </p>
+        )}
+        {children}
+      </main>
 
       {sheetOpen && (
         <button

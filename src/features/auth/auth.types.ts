@@ -38,6 +38,8 @@ export interface MobileSession {
   tokenType: 'Bearer'
   expiresAt: string
   scopeVersion: string
+  /** true solo si login o /me lo devolvieron explícitamente. */
+  es_demo: boolean
   user: GeliaUser
   permissions: string[]
   temaVisual: TemaVisual
@@ -58,6 +60,8 @@ export interface MobileLoginResponse {
   token_type: 'Bearer'
   expires_at: string
   scope_version: string
+  /** Ausente en respuestas anteriores al modo demo. */
+  es_demo?: boolean
   user: GeliaUser
   permissions: string[]
   tema_visual: TemaVisual
@@ -66,6 +70,8 @@ export interface MobileLoginResponse {
 
 export interface MobileMeResponse {
   scope_version: string
+  /** Ausente en respuestas anteriores al modo demo. */
+  es_demo?: boolean
   user: GeliaUser
   permissions: string[]
   tema_visual: TemaVisual

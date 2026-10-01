@@ -45,6 +45,7 @@ function sessionFromLogin(response: MobileLoginResponse): MobileSession {
     tokenType: response.token_type,
     expiresAt: response.expires_at,
     scopeVersion: response.scope_version,
+    es_demo: response.es_demo === true,
     user: response.user,
     permissions: response.permissions,
     temaVisual: response.tema_visual,
@@ -102,6 +103,7 @@ export async function fetchMobileMe(session: MobileSession): Promise<MobileSessi
   return {
     ...session,
     scopeVersion: response.scope_version,
+    es_demo: response.es_demo === true,
     user: response.user,
     permissions: response.permissions,
     temaVisual: response.tema_visual,
