@@ -35,7 +35,7 @@ async function devicePayload() {
     device_uuid: await getOrCreateDeviceUuid(),
     device_name: deviceName(),
     platform: Capacitor.getPlatform(),
-    app_version: import.meta.env.VITE_APP_VERSION || APP_VERSION,
+    app_version: APP_VERSION,
   }
 }
 

@@ -2,6 +2,7 @@
   "name": "gelia-nv-movil",
   "private": true,
   "version": "1.4.1",
+  "androidVersionCode": 3,
   "type": "module",
   "scripts": {
     "dev": "vite",
