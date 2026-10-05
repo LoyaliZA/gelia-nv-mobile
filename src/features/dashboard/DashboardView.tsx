@@ -3,6 +3,7 @@ import type { AppRoute } from '../../app/routes'
 import { DashboardMobileView } from '../../components/dashboard/DashboardMobileView'
 import { DashboardModuleCard } from '../../components/dashboard/DashboardModuleCard'
 import { DashboardPanel } from '../../components/dashboard/DashboardPanel'
+import { VisitasDelDiaWidget } from '../../components/dashboard/VisitasDelDiaWidget'
 import type { MobileSession } from '../auth/auth.types'
 import { ClienteSyncStatus } from '../clientes/ClienteSyncStatus'
 import { puedeConsultarClientesMovil } from '../clientes/mobileClienteAccess'
@@ -25,6 +26,10 @@ export function DashboardView({ onNavigate, session }: DashboardViewProps) {
   const hasPuntoVenta = showResguardos || showTurnos || showVisitas
 
   const sections = [
+    ...(showVisitas ? [{
+      id: 'visitas_hoy',
+      content: <VisitasDelDiaWidget onNavigate={onNavigate} session={session} />,
+    }] : []),
     ...(showClientes ? [{
       id: 'operaciones',
       content: (

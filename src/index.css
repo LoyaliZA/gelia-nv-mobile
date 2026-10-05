@@ -321,6 +321,21 @@ svg:not(.gelia-logo) { width: 1.25rem; height: 1.25rem; }
 .dashboard-module-card-mobile__badge { padding: .12rem .3rem; border-radius: .4rem; color: var(--muted); background: var(--surface); font-size: .44rem; font-weight: 900; text-transform: uppercase; }
 .dashboard-module-card-mobile--disabled { opacity: .55; cursor: not-allowed; }
 .dashboard-empty { margin: 0; color: var(--muted); font-size: .72rem; }
+.dashboard-visitas-widget { display: flex; flex-direction: column; gap: .75rem; }
+.dashboard-visitas-widget__toolbar { display: flex; align-items: flex-start; gap: .5rem; justify-content: space-between; }
+.dashboard-visitas-widget__hint { margin: 0; flex: 1; color: var(--muted); font-size: .68rem; line-height: 1.35; }
+.dashboard-visitas-widget__refresh { flex-shrink: 0; }
+.dashboard-visitas-widget__loading { display: flex; align-items: center; gap: .45rem; color: var(--muted); font-size: .72rem; }
+.dashboard-visitas-widget__list { display: flex; flex-direction: column; gap: .45rem; }
+.dashboard-visitas-widget__row { width: 100%; padding: .65rem .7rem; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .55rem; border: 1px solid var(--border); border-radius: .95rem; background: var(--surface-soft); color: var(--text); text-align: left; cursor: pointer; }
+.dashboard-visitas-widget__row:active { transform: scale(.995); }
+.dashboard-visitas-widget__hora { font-size: .62rem; font-weight: 900; letter-spacing: -.01em; color: var(--color-primario); white-space: nowrap; }
+.dashboard-visitas-widget__cliente { min-width: 0; display: flex; flex-direction: column; gap: .1rem; }
+.dashboard-visitas-widget__cliente strong { font-size: .72rem; font-weight: 800; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dashboard-visitas-widget__numero { font-size: .58rem; color: var(--muted); font-weight: 700; }
+.dashboard-visitas-widget__meta { display: inline-flex; align-items: center; gap: .25rem; flex-wrap: wrap; justify-content: flex-end; }
+.dashboard-visitas-widget__chevron { color: var(--muted); flex-shrink: 0; }
+.dashboard-visitas-widget__footer { width: 100%; min-height: 2.35rem; padding: .55rem .75rem; display: flex; align-items: center; justify-content: space-between; gap: .5rem; border: 1px dashed color-mix(in srgb, var(--color-primario) 35%, var(--border)); border-radius: .9rem; background: color-mix(in srgb, var(--color-primario) 6%, transparent); color: var(--color-primario); font-size: .64rem; font-weight: 900; cursor: pointer; }
 .drawer-avatar { width: 2.6rem; height: 2.6rem; flex: 0 0 auto; }
 
 .spin { animation: spin .8s linear infinite; }

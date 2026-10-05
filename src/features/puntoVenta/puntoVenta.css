@@ -1813,3 +1813,14 @@
 :root.dark .pdv-status-chip--warn {
   color: #fbbf24;
 }
+
+.pdv-status-chip--compact {
+  padding: .1rem .35rem;
+  font-size: .5rem;
+}
+
+.pdv-visita-card--focus {
+  outline: 2px solid color-mix(in srgb, var(--color-primario) 65%, transparent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primario) 18%, transparent);
+}

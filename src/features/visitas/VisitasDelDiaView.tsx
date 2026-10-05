@@ -5,41 +5,19 @@ import { SucursalActivaCard } from '../puntoVenta/SucursalActivaCard'
 import { mensajeErrorPdv } from '../puntoVenta/puntoVenta.errors'
 import { usePuntoVenta } from '../puntoVenta/usePuntoVenta'
 import { confirmarLlegadaVisita, obtenerVisitasDelDia } from './visita.api'
+import { consumeVisitaFocusId } from './visita.navigation'
+import {
+  etiquetaAsistencia,
+  etiquetaEstado,
+  etiquetaTiempo,
+  fechaVisita,
+  nombreSucursal,
+  visitaCardDomId,
+} from './visita.presentacion'
 import type { VisitaProgramadaItem, VisitasDelDiaResponse } from './visita.types'
 
 interface Props {
   session: MobileSession
-}
-
-function fechaVisita(value: string) {
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
-  return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(parsed)
-}
-
-function etiquetaTiempo(estado: VisitaProgramadaItem['estado_tiempo']) {
-  if (estado === 'retrasado') return 'Retrasado'
-  if (estado === 'en_tiempo') return 'En tiempo'
-  return null
-}
-
-function etiquetaEstado(item: VisitaProgramadaItem) {
-  const raw = item.estado_etiqueta ?? item.estado
-  if (typeof raw === 'string' && raw.trim()) return raw.trim()
-  return 'Programada'
-}
-
-function nombreSucursal(item: VisitaProgramadaItem, fallback: string | null) {
-  const nombre = item.sucursal?.nombre?.trim()
-  if (nombre) return nombre
-  return fallback
-}
-
-function etiquetaAsistencia(item: VisitaProgramadaItem) {
-  if (item.asistencia_etiqueta?.trim()) return item.asistencia_etiqueta.trim()
-  if (item.asistencia_confirmada === true) return 'Confirmó asistencia'
-  if (item.asistencia_confirmada === false) return 'Sin confirmar'
-  return null
 }
 
 function VisitaCard({
@@ -60,7 +38,7 @@ function VisitaCard({
   const sucursal = nombreSucursal(item, sucursalActivaNombre)
 
   return (
-    <article className="pdv-visita-card">
+    <article className="pdv-visita-card" id={visitaCardDomId(item.id)}>
       {sucursal && (
         <p className="pdv-visita-card__sucursal-kicker">
           Sucursal: {sucursal}
@@ -185,6 +163,30 @@ export function VisitasDelDiaView({ session }: Props) {
     const id = window.setInterval(() => void load(true), 60_000)
     return () => window.clearInterval(id)
   }, [load])
+
+  useEffect(() => {
+    if (!data?.visitas.length) return undefined
+
+    const focusId = consumeVisitaFocusId()
+    if (focusId == null) return undefined
+
+    const frame = window.requestAnimationFrame(() => {
+      const el = document.getElementById(visitaCardDomId(focusId))
+      if (!el) return
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el.classList.add('pdv-visita-card--focus')
+    })
+
+    const timer = window.setTimeout(() => {
+      document.getElementById(visitaCardDomId(focusId))?.classList.remove('pdv-visita-card--focus')
+    }, 2_500)
+
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.clearTimeout(timer)
+      document.getElementById(visitaCardDomId(focusId))?.classList.remove('pdv-visita-card--focus')
+    }
+  }, [data])
 
   const onLlegada = async (visitaId: number) => {
     setConfirmando(visitaId)
