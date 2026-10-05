@@ -13,7 +13,10 @@ import { puedeConsultarClientesMovil } from '../clientes/mobileClienteAccess'
 import { useClienteSync } from '../clientes/useClienteSync'
 import type { MobileSession } from '../auth/auth.types'
 import { SucursalActivaCard } from '../puntoVenta/SucursalActivaCard'
-import { puedeMarcarPrioridadTurnoMovil } from '../puntoVenta/puntoVentaAccess'
+import {
+  puedeAltaVisitanteConClienteTitularMovil,
+  puedeMarcarPrioridadTurnoMovil,
+} from '../puntoVenta/puntoVentaAccess'
 import { mensajeErrorPdv } from '../puntoVenta/puntoVenta.errors'
 import { usePuntoVenta } from '../puntoVenta/usePuntoVenta'
 import { obtenerRecepcionTurnos, registrarTurno } from './turno.api'
@@ -41,6 +44,66 @@ function prioridad(turno: TurnoRecepcionItem) {
   if (turno.prioridad_adulto_mayor) tags.push('Adulto mayor')
   if (turno.prioridad_discapacidad) tags.push('Discapacidad')
   return tags
+}
+
+function BloqueBusquedaCliente({
+  clienteSelected,
+  clienteQuery,
+  clienteResults,
+  searchingCliente,
+  onBuscar,
+  onQueryChange,
+  onSelect,
+  onClear,
+}: {
+  clienteSelected: ClienteMovil | null
+  clienteQuery: string
+  clienteResults: ClienteMovil[]
+  searchingCliente: boolean
+  onBuscar: () => void
+  onQueryChange: (value: string) => void
+  onSelect: (cliente: ClienteMovil) => void
+  onClear: () => void
+}) {
+  if (clienteSelected) {
+    return (
+      <div className="pdv-selected-client">
+        <div>
+          <span>#{clienteSelected.numero_cliente}</span>
+          <strong>{clienteSelected.nombre}</strong>
+        </div>
+        <button className="secondary-button" onClick={onClear} type="button">
+          Cambiar
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div className="pdv-client-search">
+        <Search size={17} />
+        <input
+          onChange={(event) => onQueryChange(event.target.value)}
+          placeholder="Nombre o número de cliente"
+          value={clienteQuery}
+        />
+        <button className="secondary-button" disabled={searchingCliente} onClick={onBuscar} type="button">
+          {searchingCliente ? 'Buscando…' : 'Buscar'}
+        </button>
+      </div>
+      {clienteResults.length > 0 && (
+        <div className="pdv-client-results">
+          {clienteResults.map((cliente) => (
+            <button key={cliente.id} onClick={() => onSelect(cliente)} type="button">
+              <span>#{cliente.numero_cliente}</span>
+              <strong>{cliente.nombre}</strong>
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  )
 }
 
 function TurnoCard({ item, asignado = false }: { item: TurnoRecepcionItem; asignado?: boolean }) {
@@ -96,6 +159,10 @@ export function TurnosRecepcionView({ session }: Props) {
   const puedeAlta = Boolean(contexto?.permisos.turnos_alta)
   const puedePrioridad = puedeMarcarPrioridadTurnoMovil(session.permissions)
   const puedeBuscarCliente = puedeConsultarClientesMovil(session.permissions)
+  const puedeRepresentante = Boolean(
+    contexto?.permisos.turnos_alta_representante
+      ?? puedeAltaVisitanteConClienteTitularMovil(session.permissions),
+  )
 
   const load = useCallback(async (silent = false) => {
     if (!sucursalId || !puedeVer) {
@@ -130,6 +197,34 @@ export function TurnosRecepcionView({ session }: Props) {
       .find((turno) => Number(turno.cliente_id) === Number(clienteSelected.id)) ?? null
   }, [clienteSelected, data])
 
+  const limpiarClienteAlta = () => {
+    setClienteSelected(null)
+    setClienteResults([])
+    setClienteQuery('')
+  }
+
+  const cambiarModo = (nuevo: AltaMode) => {
+    setMode(nuevo)
+    setAltaError(null)
+    limpiarClienteAlta()
+    setNombreVisitante('')
+    setPrioridadAdulto(false)
+    setPrioridadDiscapacidad(false)
+  }
+
+  const seleccionarCliente = (cliente: ClienteMovil) => {
+    setClienteSelected(cliente)
+    setAltaError(null)
+    if (!data) return
+    const turnoExistente = [...data.en_cola, ...data.asignados]
+      .find((turno) => Number(turno.cliente_id) === Number(cliente.id))
+    if (turnoExistente) {
+      const estado = turnoExistente.estado === 'ASIGNADO' ? 'asignado' : 'en cola'
+      const folio = turnoExistente.folio ? ` (${turnoExistente.folio})` : ''
+      setAltaError(`Esta persona ya tiene un turno ${estado}${folio}. No es necesario registrarlo de nuevo.`)
+    }
+  }
+
   const buscarCliente = async () => {
     const q = clienteQuery.trim()
     if (!q || !puedeBuscarCliente) return
@@ -160,23 +255,35 @@ export function TurnosRecepcionView({ session }: Props) {
       setAltaError(`Este cliente ya tiene el turno ${turnosActivosCliente.folio} activo.`)
       return
     }
-    if (mode === 'visitante' && nombreVisitante.trim().length < 2) {
-      setAltaError('Captura el nombre para llamado del visitante.')
-      return
+    if (mode === 'visitante') {
+      if (nombreVisitante.trim().length < 2) {
+        setAltaError('Captura el nombre del visitante (se mostrará en pantalla de turnos).')
+        return
+      }
+      if (!puedeRepresentante) {
+        setAltaError('Para registrar visitantes con número de cliente titular, solicita el permiso de alta con cliente.')
+        return
+      }
+      if (!clienteSelected?.id) {
+        setAltaError('Selecciona el número de cliente titular usado por el visitante.')
+        return
+      }
+      if (turnosActivosCliente) {
+        setAltaError(`Este cliente ya tiene el turno ${turnosActivosCliente.folio} activo.`)
+        return
+      }
     }
 
     setCreating(true)
     try {
       await registrarTurno(session, {
-        clienteId: mode === 'cliente' ? clienteSelected?.id : null,
-        nombreLlamado: mode === 'visitante' ? nombreVisitante : null,
+        clienteId: clienteSelected?.id ?? null,
+        nombreLlamado: mode === 'visitante' ? nombreVisitante.trim() : null,
         prioridadAdultoMayor: puedePrioridad ? prioridadAdulto : false,
         prioridadDiscapacidad: puedePrioridad ? prioridadDiscapacidad : false,
       })
 
-      setClienteSelected(null)
-      setClienteResults([])
-      setClienteQuery('')
+      limpiarClienteAlta()
       setNombreVisitante('')
       setPrioridadAdulto(false)
       setPrioridadDiscapacidad(false)
@@ -217,64 +324,74 @@ export function TurnosRecepcionView({ session }: Props) {
           <form className="pdv-form" onSubmit={(event) => void crear(event)}>
             <div className="pdv-segmented">
               {puedeBuscarCliente && (
-                <button aria-pressed={mode === 'cliente'} onClick={() => { setMode('cliente'); setAltaError(null) }} type="button">
+                <button aria-pressed={mode === 'cliente'} onClick={() => cambiarModo('cliente')} type="button">
                   Cliente
                 </button>
               )}
-              <button aria-pressed={mode === 'visitante'} onClick={() => { setMode('visitante'); setAltaError(null) }} type="button">
+              <button aria-pressed={mode === 'visitante'} onClick={() => cambiarModo('visitante')} type="button">
                 Visitante
               </button>
             </div>
 
             {mode === 'cliente' && puedeBuscarCliente ? (
-              <>
-                {clienteSelected ? (
-                  <div className="pdv-selected-client">
-                    <div>
-                      <span>#{clienteSelected.numero_cliente}</span>
-                      <strong>{clienteSelected.nombre}</strong>
-                    </div>
-                    <button className="secondary-button" onClick={() => setClienteSelected(null)} type="button">
-                      Cambiar
-                    </button>
+              <BloqueBusquedaCliente
+                clienteQuery={clienteQuery}
+                clienteResults={clienteResults}
+                clienteSelected={clienteSelected}
+                onBuscar={() => void buscarCliente()}
+                onClear={limpiarClienteAlta}
+                onQueryChange={setClienteQuery}
+                onSelect={seleccionarCliente}
+                searchingCliente={searchingCliente}
+              />
+            ) : null}
+
+            {mode === 'visitante' ? (
+              <div className="pdv-visitante-alta">
+                <label>
+                  Nombre del visitante
+                  <input
+                    autoComplete="name"
+                    maxLength={255}
+                    onChange={(event) => setNombreVisitante(event.target.value)}
+                    placeholder="Nombre que se mostrará en la pantalla de turnos"
+                    value={nombreVisitante}
+                  />
+                </label>
+                <p className="pdv-muted">
+                  En sala y en el tablero se anuncia este nombre, no el del titular del número.
+                </p>
+
+                {puedeRepresentante ? (
+                  <div className="pdv-visitante-cliente-block">
+                    <p className="pdv-kicker">Número de cliente titular</p>
+                    <p className="pdv-muted">
+                      Busca el número de cliente con el que entró el visitante para ligar el turno a esa cuenta.
+                    </p>
+                    {puedeBuscarCliente ? (
+                      <BloqueBusquedaCliente
+                        clienteQuery={clienteQuery}
+                        clienteResults={clienteResults}
+                        clienteSelected={clienteSelected}
+                        onBuscar={() => void buscarCliente()}
+                        onClear={limpiarClienteAlta}
+                        onQueryChange={setClienteQuery}
+                        onSelect={seleccionarCliente}
+                        searchingCliente={searchingCliente}
+                      />
+                    ) : (
+                      <p className="form-error" role="alert">
+                        Necesitas permiso de consulta de clientes en móvil para buscar el número titular.
+                      </p>
+                    )}
                   </div>
                 ) : (
-                  <>
-                    <div className="pdv-client-search">
-                      <Search size={17} />
-                      <input
-                        onChange={(event) => setClienteQuery(event.target.value)}
-                        placeholder="Nombre o número de cliente"
-                        value={clienteQuery}
-                      />
-                      <button className="secondary-button" disabled={searchingCliente} onClick={() => void buscarCliente()} type="button">
-                        {searchingCliente ? 'Buscando…' : 'Buscar'}
-                      </button>
-                    </div>
-                    {clienteResults.length > 0 && (
-                      <div className="pdv-client-results">
-                        {clienteResults.map((cliente) => (
-                          <button key={cliente.id} onClick={() => setClienteSelected(cliente)} type="button">
-                            <span>#{cliente.numero_cliente}</span>
-                            <strong>{cliente.nombre}</strong>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </>
+                  <p className="pdv-muted">
+                    Para registrar visitantes con número de cliente titular, solicita el permiso de alta con cliente.
+                  </p>
                 )}
-              </>
-            ) : (
-              <label>
-                Nombre para llamado
-                <input
-                  maxLength={255}
-                  onChange={(event) => setNombreVisitante(event.target.value)}
-                  placeholder="Ej. María López"
-                  value={nombreVisitante}
-                />
-              </label>
-            )}
+              </div>
+            ) : null}
 
             {puedePrioridad && (
               <fieldset className="pdv-priority-fieldset">
@@ -295,7 +412,15 @@ export function TurnosRecepcionView({ session }: Props) {
             )}
             {altaError && <p className="form-error" role="alert">{altaError}</p>}
 
-            <button className="primary-button pdv-submit-button" disabled={creating || Boolean(turnosActivosCliente)} type="submit">
+            <button
+              className="primary-button pdv-submit-button"
+              disabled={
+                creating
+                || Boolean(turnosActivosCliente)
+                || (mode === 'visitante' && (!puedeRepresentante || (puedeRepresentante && puedeBuscarCliente && !clienteSelected)))
+              }
+              type="submit"
+            >
               {creating ? 'Registrando…' : 'Registrar turno'}
             </button>
           </form>

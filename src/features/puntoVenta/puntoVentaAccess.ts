@@ -19,6 +19,7 @@ export const PDV_PERMISSION = {
   resguardosVerHistorialEntregas: 'pdv.resguardos.ver_historial_entregas',
   turnosVer: 'pdv.turnos.ver',
   turnosAlta: 'pdv.turnos.alta',
+  turnosAltaRepresentante: 'pdv.turnos.alta_representante',
   turnosMarcarPrioridad: 'pdv.turnos.marcar_prioridad',
   visitasProgramadasVer: 'pdv.visitas_programadas.ver',
   visitasProgramadasConfirmarLlegada: 'pdv.visitas_programadas.confirmar_llegada',
@@ -44,6 +45,10 @@ export function puedeConfirmarCustodiaResguardo(permissions: string[]) {
 
 export function puedeMarcarPrioridadTurnoMovil(permissions: string[]) {
   return permissions.includes(PDV_PERMISSION.turnosMarcarPrioridad)
+}
+
+export function puedeAltaVisitanteConClienteTitularMovil(permissions: string[]) {
+  return permissions.includes(PDV_PERMISSION.turnosAltaRepresentante)
 }
 
 export function puedeVerVisitasProgramadasMovil(permissions: string[]) {

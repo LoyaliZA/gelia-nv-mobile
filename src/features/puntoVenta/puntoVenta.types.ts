@@ -22,6 +22,7 @@ export interface PdvPermisos {
   resguardos_ver_historial_entregas: boolean
   turnos_ver: boolean
   turnos_alta: boolean
+  turnos_alta_representante: boolean
   visitas_programadas_ver: boolean
   visitas_programadas_confirmar_llegada: boolean
 }

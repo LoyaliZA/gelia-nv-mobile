@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
-import { Camera, ImagePlus, LoaderCircle, X } from 'lucide-react'
+import { Camera, ImagePlus, LoaderCircle, Maximize2, Trash2, X } from 'lucide-react'
 import type { MobileSession } from '../auth/auth.types'
 import { mensajeErrorPdv } from '../puntoVenta/puntoVenta.errors'
 import { entregarResguardo } from './resguardo.api'
 import type { ResguardoDetalle } from './resguardo.types'
 import { SignaturePad } from './SignaturePad'
 import type { SignaturePadHandle } from './SignaturePad'
+import { SignatureFullscreenOverlay } from './SignatureFullscreenOverlay'
+import { dataUrlABlob, esDispositivoCampo } from './entregaResguardoFirma'
 import { ModalPortal } from '../../components/ui/ModalPortal'
 import { ContenidoResguardoPanel } from './ContenidoResguardoPanel'
 import {
@@ -57,6 +59,8 @@ export function EntregaResguardoSheet({
   const [fotoPaqueteAbierto, setFotoPaqueteAbierto] = useState<File | null>(null)
   const [previewAbierto, setPreviewAbierto] = useState<string | null>(null)
   const [firmaPreview, setFirmaPreview] = useState<string | null>(null)
+  const [firmaDataUrlGuardada, setFirmaDataUrlGuardada] = useState<string | null>(null)
+  const [overlayFirmaAbierto, setOverlayFirmaAbierto] = useState(false)
   const [capturando, setCapturando] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -81,6 +85,9 @@ export function EntregaResguardoSheet({
     setObservaciones('')
     setFotoPaqueteAbierto(null)
     setFirmaPreview(null)
+    setFirmaDataUrlGuardada(null)
+    setOverlayFirmaAbierto(false)
+    signatureRef.current?.clear()
     setError(null)
     if (previewRef.current) URL.revokeObjectURL(previewRef.current)
     previewRef.current = null
@@ -160,12 +167,15 @@ export function EntregaResguardoSheet({
       return
     }
 
-    if (!signatureRef.current?.hasSignature()) {
+    const tieneFirma = Boolean(firmaDataUrlGuardada) || Boolean(signatureRef.current?.hasSignature())
+    if (!tieneFirma) {
       setError('Solicita la firma antes de completar la entrega.')
       return
     }
 
-    const firma = await signatureRef.current.toBlob()
+    const firma = firmaDataUrlGuardada
+      ? await dataUrlABlob(firmaDataUrlGuardada)
+      : await signatureRef.current?.toBlob()
     if (!firma) {
       setError('No se pudo preparar la firma. Intenta dibujarla nuevamente.')
       return
@@ -331,10 +341,65 @@ export function EntregaResguardoSheet({
               />
             </div>
 
-            <div>
+            <div className="pdv-signature-section">
               <span className="pdv-form__label">Firma de conformidad</span>
-              <SignaturePad onSignatureChange={setFirmaPreview} ref={signatureRef} />
+              <p className="pdv-muted pdv-signature-section__hint">
+                La firma es obligatoria para validar la entrega.
+                {esDispositivoCampo() ? ' En este dispositivo se recomienda firmar en pantalla completa en horizontal.' : ''}
+              </p>
+
+              {firmaDataUrlGuardada ? (
+                <div className="pdv-signature-section__preview">
+                  <img alt="Vista previa de la firma capturada" src={firmaDataUrlGuardada} />
+                  <div className="pdv-signature-section__actions">
+                    <button
+                      className="secondary-button"
+                      disabled={enviando}
+                      onClick={() => setOverlayFirmaAbierto(true)}
+                      type="button"
+                    >
+                      <Maximize2 size={16} /> Volver a firmar
+                    </button>
+                    <button
+                      className="secondary-button"
+                      disabled={enviando}
+                      onClick={() => {
+                        signatureRef.current?.clear()
+                        setFirmaDataUrlGuardada(null)
+                        setFirmaPreview(null)
+                      }}
+                      type="button"
+                    >
+                      <Trash2 size={16} /> Quitar firma
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <SignaturePad onSignatureChange={setFirmaPreview} ref={signatureRef} />
+                  <button
+                    className="primary-button pdv-signature-section__fullscreen"
+                    disabled={enviando}
+                    onClick={() => setOverlayFirmaAbierto(true)}
+                    type="button"
+                  >
+                    <Maximize2 size={16} /> Firmar en pantalla completa
+                  </button>
+                </>
+              )}
             </div>
+
+            <SignatureFullscreenOverlay
+              disabled={enviando}
+              initialDataUrl={firmaDataUrlGuardada || firmaPreview}
+              onClose={() => setOverlayFirmaAbierto(false)}
+              onSave={(url) => {
+                setFirmaDataUrlGuardada(url)
+                setFirmaPreview(url)
+                signatureRef.current?.loadDataUrl(url)
+              }}
+              open={overlayFirmaAbierto}
+            />
 
             <div className="pdv-evidence-block">
               <h4>Evidencia de entrega</h4>

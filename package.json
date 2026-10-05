@@ -1,7 +1,7 @@
 {
   "name": "gelia-nv-movil",
   "private": true,
-  "version": "1.4.1",
+  "version": "1.4.2",
   "androidVersionCode": 3,
   "type": "module",
   "scripts": {
@@ -22,6 +22,7 @@
     "@capgo/capacitor-passkey": "^8.5.2",
     "@simplewebauthn/browser": "^14.0.0",
     "lucide-react": "^1.47.0",
+    "perfect-freehand": "^1.2.3",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
