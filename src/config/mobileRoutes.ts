@@ -7,6 +7,7 @@ export function routeToNavUrl(route: AppRoute): string {
     clientes: '/consultar-clientes',
     resguardos: '/punto-venta/resguardos',
     turnos: '/punto-venta/turnos/recepcion',
+    visitas: '/punto-venta/visitas-programadas',
     perfil: '/perfil',
     preferencias: '/perfil/preferencias',
   }
@@ -20,6 +21,7 @@ const MOBILE_ENABLED_IDS = new Set([
   'card_consultar_clientes',
   'resguardos_pdv',
   'turnos_recepcion',
+  'visitas_programadas_pdv',
 ])
 
 const MOBILE_ROUTE_BY_ID: Partial<Record<string, AppRoute>> = {
@@ -28,6 +30,7 @@ const MOBILE_ROUTE_BY_ID: Partial<Record<string, AppRoute>> = {
   card_consultar_clientes: 'clientes',
   resguardos_pdv: 'resguardos',
   turnos_recepcion: 'turnos',
+  visitas_programadas_pdv: 'visitas',
 }
 
 export function getMobileRouteForLink(id: string): AppRoute | null {

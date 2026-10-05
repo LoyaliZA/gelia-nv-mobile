@@ -5,6 +5,7 @@ export type AppRoute =
   | 'clientes'
   | 'resguardos'
   | 'turnos'
+  | 'visitas'
   | 'perfil'
   | 'preferencias'
 
@@ -13,6 +14,7 @@ const ROUTES: Record<string, AppRoute> = {
   '#/clientes': 'clientes',
   '#/resguardos': 'resguardos',
   '#/turnos': 'turnos',
+  '#/visitas': 'visitas',
   '#/perfil': 'perfil',
   '#/preferencias': 'preferencias',
 }

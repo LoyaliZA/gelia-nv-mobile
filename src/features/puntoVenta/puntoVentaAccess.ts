@@ -20,6 +20,8 @@ export const PDV_PERMISSION = {
   turnosVer: 'pdv.turnos.ver',
   turnosAlta: 'pdv.turnos.alta',
   turnosMarcarPrioridad: 'pdv.turnos.marcar_prioridad',
+  visitasProgramadasVer: 'pdv.visitas_programadas.ver',
+  visitasProgramadasConfirmarLlegada: 'pdv.visitas_programadas.confirmar_llegada',
 } as const
 
 export function puedeAccederPuntoVenta(permissions: string[]) {
@@ -42,4 +44,9 @@ export function puedeConfirmarCustodiaResguardo(permissions: string[]) {
 
 export function puedeMarcarPrioridadTurnoMovil(permissions: string[]) {
   return permissions.includes(PDV_PERMISSION.turnosMarcarPrioridad)
+}
+
+export function puedeVerVisitasProgramadasMovil(permissions: string[]) {
+  return puedeAccederPuntoVenta(permissions)
+    && permissions.includes(PDV_PERMISSION.visitasProgramadasVer)
 }

@@ -1462,3 +1462,54 @@
     -webkit-backdrop-filter: blur(6px);
   }
 }
+
+.pdv-visita-list {
+  display: grid;
+  gap: .75rem;
+}
+
+.pdv-visita-card {
+  display: grid;
+  gap: .65rem;
+}
+
+.pdv-visita-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: .6rem;
+  align-items: flex-start;
+}
+
+.pdv-visita-card__nombre {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: var(--color-primario);
+  line-height: 1.2;
+}
+
+.pdv-visita-card__numero {
+  font-size: 1rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.pdv-visita-card__hora {
+  font-size: .9rem;
+  font-weight: 700;
+}
+
+.pdv-visita-card__meta {
+  font-size: .72rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.pdv-status-chip--ok {
+  background: color-mix(in srgb, #10b981 18%, var(--surface-soft));
+  color: #047857;
+}
+
+.pdv-status-chip--warn {
+  background: color-mix(in srgb, #f59e0b 18%, var(--surface-soft));
+  color: #b45309;
+}

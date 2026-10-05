@@ -1,4 +1,4 @@
-import { Briefcase, Package, Search, Store, Ticket } from 'lucide-react'
+import { Briefcase, CalendarClock, Package, Search, Store, Ticket } from 'lucide-react'
 import type { AppRoute } from '../../app/routes'
 import { DashboardMobileView } from '../../components/dashboard/DashboardMobileView'
 import { DashboardModuleCard } from '../../components/dashboard/DashboardModuleCard'
@@ -9,6 +9,7 @@ import { puedeConsultarClientesMovil } from '../clientes/mobileClienteAccess'
 import {
   puedeAbrirRecepcionTurnosMovil,
   puedeVerResguardosMovil,
+  puedeVerVisitasProgramadasMovil,
 } from '../puntoVenta/puntoVentaAccess'
 
 interface DashboardViewProps {
@@ -20,7 +21,8 @@ export function DashboardView({ onNavigate, session }: DashboardViewProps) {
   const showClientes = puedeConsultarClientesMovil(session.permissions)
   const showResguardos = puedeVerResguardosMovil(session.permissions)
   const showTurnos = puedeAbrirRecepcionTurnosMovil(session.permissions)
-  const hasPuntoVenta = showResguardos || showTurnos
+  const showVisitas = puedeVerVisitasProgramadasMovil(session.permissions)
+  const hasPuntoVenta = showResguardos || showTurnos || showVisitas
 
   const sections = [
     ...(showClientes ? [{
@@ -67,6 +69,18 @@ export function DashboardView({ onNavigate, session }: DashboardViewProps) {
                 onClick={() => onNavigate('turnos')}
                 subtitle="Alta y seguimiento de la fila de ventas."
                 title="Recepción turnos"
+              />
+            )}
+
+            {showVisitas && (
+              <DashboardModuleCard
+                borderStyle={{ borderColor: 'var(--color-primario)' }}
+                icon={CalendarClock}
+                iconStyle={{ color: 'var(--color-primario)' }}
+                iconWrapStyle={{ backgroundColor: 'color-mix(in srgb, var(--color-primario) 15%, transparent)' }}
+                onClick={() => onNavigate('visitas')}
+                subtitle="Visitas programadas para hoy en sucursal."
+                title="Visitas del día"
               />
             )}
           </div>

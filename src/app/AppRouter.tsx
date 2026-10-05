@@ -13,9 +13,11 @@ import { PuntoVentaProvider } from '../features/puntoVenta/PuntoVentaProvider'
 import {
   puedeAbrirRecepcionTurnosMovil,
   puedeVerResguardosMovil,
+  puedeVerVisitasProgramadasMovil,
 } from '../features/puntoVenta/puntoVentaAccess'
 import { ResguardosView } from '../features/resguardos/ResguardosView'
 import { TurnosRecepcionView } from '../features/turnos/TurnosRecepcionView'
+import { VisitasDelDiaView } from '../features/visitas/VisitasDelDiaView'
 import { MobileAppLayout } from '../layouts/MobileAppLayout'
 import { useAppRoute } from './routes'
 
@@ -40,6 +42,7 @@ export function AppRouter() {
   const canConsultarClientes = puedeConsultarClientesMovil(auth.session.permissions)
   const canResguardos = puedeVerResguardosMovil(auth.session.permissions)
   const canTurnos = puedeAbrirRecepcionTurnosMovil(auth.session.permissions)
+  const canVisitas = puedeVerVisitasProgramadasMovil(auth.session.permissions)
 
   return (
     <ClienteSyncProvider session={auth.session}>
@@ -70,6 +73,12 @@ export function AppRouter() {
             canTurnos
               ? <TurnosRecepcionView session={auth.session} />
               : <PuntoVentaAccessDeniedView modulo="Recepción de Turnos" onNavigate={navigate} />
+          )}
+
+          {route === 'visitas' && (
+            canVisitas
+              ? <VisitasDelDiaView session={auth.session} />
+              : <PuntoVentaAccessDeniedView modulo="Visitas del día" onNavigate={navigate} />
           )}
 
           {route === 'perfil' && (

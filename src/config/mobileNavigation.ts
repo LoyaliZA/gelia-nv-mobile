@@ -1,8 +1,9 @@
-import { Briefcase, Home, LayoutDashboard, Package, Search, Store, Ticket, User } from 'lucide-react'
+import { Briefcase, CalendarClock, Home, LayoutDashboard, Package, Search, Store, Ticket, User } from 'lucide-react'
 import { puedeConsultarClientesMovil } from '../features/clientes/mobileClienteAccess'
 import {
   puedeAbrirRecepcionTurnosMovil,
   puedeVerResguardosMovil,
+  puedeVerVisitasProgramadasMovil,
 } from '../features/puntoVenta/puntoVentaAccess'
 import type { SidebarLinkNode, SidebarNode } from './navTypes'
 
@@ -47,6 +48,19 @@ export function buildMobileNavigation(permissions: string[] = []): SidebarNode[]
       active: (url) => url.startsWith('/punto-venta/turnos'),
       mobileEnabled: true,
       mobileRoute: 'turnos',
+    })
+  }
+
+  if (puedeVerVisitasProgramadasMovil(permissions)) {
+    puntoVentaLinks.push({
+      type: 'link',
+      id: 'visitas_programadas_pdv',
+      label: 'Visitas del día',
+      icon: CalendarClock,
+      href: () => '/punto-venta/visitas-programadas',
+      active: (url) => url.startsWith('/punto-venta/visitas-programadas'),
+      mobileEnabled: true,
+      mobileRoute: 'visitas',
     })
   }
 
