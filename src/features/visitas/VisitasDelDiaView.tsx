@@ -1,4 +1,4 @@
-import { RefreshCw, UserCheck } from 'lucide-react'
+import { CalendarDays, RefreshCw, UserCheck } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import type { MobileSession } from '../auth/auth.types'
 import { SucursalActivaCard } from '../puntoVenta/SucursalActivaCard'
@@ -11,54 +11,138 @@ interface Props {
   session: MobileSession
 }
 
+function fechaVisita(value: string) {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(parsed)
+}
+
 function etiquetaTiempo(estado: VisitaProgramadaItem['estado_tiempo']) {
   if (estado === 'retrasado') return 'Retrasado'
   if (estado === 'en_tiempo') return 'En tiempo'
   return null
 }
 
+function etiquetaEstado(item: VisitaProgramadaItem) {
+  const raw = item.estado_etiqueta ?? item.estado
+  if (typeof raw === 'string' && raw.trim()) return raw.trim()
+  return 'Programada'
+}
+
+function nombreSucursal(item: VisitaProgramadaItem, fallback: string | null) {
+  const nombre = item.sucursal?.nombre?.trim()
+  if (nombre) return nombre
+  return fallback
+}
+
+function etiquetaAsistencia(item: VisitaProgramadaItem) {
+  if (item.asistencia_etiqueta?.trim()) return item.asistencia_etiqueta.trim()
+  if (item.asistencia_confirmada === true) return 'Confirmó asistencia'
+  if (item.asistencia_confirmada === false) return 'Sin confirmar'
+  return null
+}
+
 function VisitaCard({
   item,
+  sucursalActivaNombre,
   puedeConfirmar,
   busy,
   onLlegada,
 }: {
   item: VisitaProgramadaItem
+  sucursalActivaNombre: string | null
   puedeConfirmar: boolean
   busy: boolean
   onLlegada: (id: number) => void
 }) {
   const tiempo = etiquetaTiempo(item.estado_tiempo)
+  const asistencia = etiquetaAsistencia(item)
+  const sucursal = nombreSucursal(item, sucursalActivaNombre)
 
   return (
-    <article className="pdv-turno-card pdv-visita-card">
-      <div className="pdv-visita-card__header">
+    <article className="pdv-visita-card">
+      {sucursal && (
+        <p className="pdv-visita-card__sucursal-kicker">
+          Sucursal: {sucursal}
+        </p>
+      )}
+
+      <div className="pdv-visita-card__lead">
+        <span className="pdv-visita-card__numero">{item.cliente?.numero_cliente ?? '—'}</span>
+        <strong className="pdv-visita-card__nombre">{item.cliente?.nombre ?? 'Cliente'}</strong>
+        {item.fecha && (
+          <span className="pdv-visita-card__fecha">
+            <CalendarDays size={14} aria-hidden />
+            {fechaVisita(item.fecha)}
+          </span>
+        )}
+      </div>
+
+      <dl className="pdv-visita-card__grid">
         <div>
-          <div className="pdv-visita-card__nombre">{item.cliente?.nombre ?? 'Cliente'}</div>
-          <div className="pdv-visita-card__numero">{item.cliente?.numero_cliente}</div>
+          <dt>Hora</dt>
+          <dd>{item.hora_etiqueta}</dd>
         </div>
+        {sucursal && (
+          <div>
+            <dt>Sucursal</dt>
+            <dd>{sucursal}</dd>
+          </div>
+        )}
+        <div>
+          <dt>Registró</dt>
+          <dd>{item.registrado_por?.nombre ?? '—'}</dd>
+        </div>
+        <div>
+          <dt>Estado</dt>
+          <dd>{etiquetaEstado(item)}</dd>
+        </div>
+        {item.registrado_por?.departamento && (
+          <div className="pdv-visita-card__grid-span">
+            <dt>Departamento</dt>
+            <dd>{item.registrado_por.departamento}</dd>
+          </div>
+        )}
+      </dl>
+
+      {(item.probabilidad_asistencia || asistencia) && (
+        <div className="pdv-visita-card__highlight">
+          <span className="pdv-kicker">Probabilidad de asistencia</span>
+          {item.probabilidad_asistencia && (
+            <p className="pdv-visita-card__probabilidad">{item.probabilidad_asistencia}</p>
+          )}
+          {asistencia && (
+            <p className="pdv-visita-card__asistencia">
+              <UserCheck size={16} aria-hidden />
+              {asistencia}
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className="pdv-chip-row pdv-visita-card__chips">
+        <span className="pdv-status-chip pdv-status-chip--accent">{etiquetaEstado(item)}</span>
+        {asistencia && (
+          <span className="pdv-status-chip pdv-status-chip--ok">{asistencia}</span>
+        )}
         {tiempo && (
-          <span className={`pdv-status-chip ${item.estado_tiempo === 'retrasado' ? 'pdv-status-chip--warn' : 'pdv-status-chip--ok'}`}>
+          <span
+            className={`pdv-status-chip ${item.estado_tiempo === 'retrasado' ? 'pdv-status-chip--warn' : 'pdv-status-chip--ok'}`}
+          >
             {tiempo}
           </span>
         )}
       </div>
-      <p className="pdv-visita-card__hora">{item.hora_etiqueta}</p>
-      <p className="pdv-visita-card__meta">
-        Registró: <strong>{item.registrado_por?.nombre ?? '—'}</strong>
-      </p>
-      {item.registrado_por?.departamento && (
-        <p className="pdv-visita-card__meta">Departamento: {item.registrado_por.departamento}</p>
-      )}
+
       {puedeConfirmar && (
         <button
           type="button"
-          className="btn btn--primary btn--block"
+          className="primary-button pdv-submit-button"
           disabled={busy}
           onClick={() => onLlegada(item.id)}
         >
           <UserCheck size={18} />
-          Registrar llegada
+          {busy ? 'Registrando…' : 'Registrar llegada'}
         </button>
       )}
     </article>
@@ -73,6 +157,7 @@ export function VisitasDelDiaView({ session }: Props) {
   const [confirmando, setConfirmando] = useState<number | null>(null)
 
   const sucursalId = contexto?.sucursal_activa?.id ?? null
+  const sucursalNombre = contexto?.sucursal_activa?.nombre ?? null
   const puedeVer = contexto?.permisos.visitas_programadas_ver ?? false
   const puedeConfirmar = contexto?.permisos.visitas_programadas_confirmar_llegada ?? false
 
@@ -118,41 +203,67 @@ export function VisitasDelDiaView({ session }: Props) {
   return (
     <div className="page-stack">
       <header className="page-heading page-heading--surface">
-        <p className="eyebrow">PUNTO DE VENTA_</p>
+        <span className="eyebrow">PUNTO DE VENTA_</span>
         <h1>Visitas del día</h1>
-        <p className="page-heading__lead">Clientes con asistencia programada para hoy.</p>
+        <p>Clientes con asistencia programada para hoy.</p>
       </header>
 
       <SucursalActivaCard />
 
-      <div className="page-toolbar">
-        <button type="button" className="btn btn--ghost" onClick={() => void load()} disabled={loading}>
-          <RefreshCw size={16} />
-          Actualizar
-        </button>
-      </div>
-
-      {error && <p className="form-error" role="alert">{error}</p>}
-      {loading && !data && <p className="theme-muted">Cargando visitas…</p>}
-
-      {!sucursalId && (
-        <p className="theme-muted">Selecciona una sucursal activa para continuar.</p>
+      {contexto && !puedeVer && (
+        <section className="pdv-state-card pdv-state-card--error">
+          <p>Tu cuenta no tiene permiso para consultar visitas programadas.</p>
+        </section>
       )}
 
-      <div className="pdv-visita-list">
-        {visitas.length === 0 && data && sucursalId && (
-          <p className="theme-muted">No hay visitas programadas para hoy.</p>
-        )}
-        {visitas.map((item) => (
-          <VisitaCard
-            key={item.id}
-            item={item}
-            puedeConfirmar={puedeConfirmar}
-            busy={confirmando === item.id}
-            onLlegada={onLlegada}
-          />
-        ))}
-      </div>
+      {puedeVer && sucursalId && (
+        <section className="pdv-panel">
+          <div className="pdv-section-heading">
+            <div>
+              <span className="pdv-kicker">Agenda</span>
+              <strong>Visitas de hoy</strong>
+            </div>
+            <button
+              aria-label="Actualizar visitas"
+              className="pdv-icon-button"
+              disabled={loading}
+              onClick={() => void load()}
+              type="button"
+            >
+              <RefreshCw className={loading ? 'spin' : ''} size={18} />
+            </button>
+          </div>
+
+          {error && <p className="form-error" role="alert">{error}</p>}
+
+          {loading && !data ? (
+            <div className="pdv-loading-block">
+              <RefreshCw className="spin" size={18} />
+              Cargando visitas…
+            </div>
+          ) : (
+            <div className="pdv-visita-list">
+              {visitas.length === 0 && data && (
+                <p className="pdv-muted">No hay visitas programadas para hoy.</p>
+              )}
+              {visitas.map((item) => (
+                <VisitaCard
+                  key={item.id}
+                  busy={confirmando === item.id}
+                  item={item}
+                  onLlegada={onLlegada}
+                  puedeConfirmar={puedeConfirmar}
+                  sucursalActivaNombre={sucursalNombre}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {puedeVer && !sucursalId && (
+        <p className="pdv-muted">Selecciona una sucursal activa para continuar.</p>
+      )}
     </div>
   )
 }

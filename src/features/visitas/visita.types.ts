@@ -3,7 +3,16 @@ export interface VisitaProgramadaItem {
   fecha: string
   tipo_hora: string
   hora_etiqueta: string
+  estado?: string | null
+  estado_etiqueta?: string | null
   estado_tiempo: 'en_tiempo' | 'retrasado' | 'sin_referencia'
+  probabilidad_asistencia?: string | null
+  asistencia_confirmada?: boolean | null
+  asistencia_etiqueta?: string | null
+  sucursal?: {
+    id?: number
+    nombre?: string | null
+  } | null
   cliente: {
     id: number
     numero_cliente: string

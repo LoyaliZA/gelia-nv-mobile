@@ -1665,51 +1665,151 @@
 
 .pdv-visita-list {
   display: grid;
-  gap: .75rem;
-}
-
-.pdv-visita-card {
-  display: grid;
   gap: .65rem;
 }
 
-.pdv-visita-card__header {
-  display: flex;
-  justify-content: space-between;
-  gap: .6rem;
-  align-items: flex-start;
+.pdv-visita-card {
+  padding: 1rem;
+  display: grid;
+  gap: .75rem;
+  border: 1px solid var(--border);
+  border-radius: 1.05rem;
+  background: var(--surface-soft);
 }
 
-.pdv-visita-card__nombre {
-  font-size: 1.15rem;
-  font-weight: 900;
+.pdv-visita-card__sucursal-kicker {
+  margin: 0;
   color: var(--color-primario);
-  line-height: 1.2;
+  font-size: .58rem;
+  font-weight: 900;
+  letter-spacing: .12em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.pdv-visita-card__lead {
+  display: grid;
+  gap: .25rem;
+  padding-bottom: .65rem;
+  border-bottom: 1px solid var(--border);
 }
 
 .pdv-visita-card__numero {
-  font-size: 1rem;
+  color: var(--color-primario);
+  font-size: clamp(1.35rem, 5vw, 1.65rem);
   font-weight: 900;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -.03em;
 }
 
-.pdv-visita-card__hora {
-  font-size: .9rem;
+.pdv-visita-card__nombre {
+  font-size: .88rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+  letter-spacing: -.01em;
+}
+
+.pdv-visita-card__fecha {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  color: var(--muted);
+  font-size: .68rem;
   font-weight: 700;
 }
 
-.pdv-visita-card__meta {
-  font-size: .72rem;
-  color: var(--muted);
+.pdv-visita-card__fecha svg {
+  width: .85rem;
+  height: .85rem;
+  flex: 0 0 auto;
+}
+
+.pdv-visita-card__grid {
   margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .55rem .75rem;
+}
+
+.pdv-visita-card__grid-span {
+  grid-column: 1 / -1;
+}
+
+.pdv-visita-card__grid dt {
+  margin: 0;
+  color: var(--muted);
+  font-size: .57rem;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.pdv-visita-card__grid dd {
+  margin: .2rem 0 0;
+  font-size: .76rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.pdv-visita-card__highlight {
+  padding: .75rem .85rem;
+  display: grid;
+  gap: .35rem;
+  border: 1px solid color-mix(in srgb, var(--color-primario) 35%, var(--border));
+  border-radius: .9rem;
+  background: color-mix(in srgb, var(--color-primario) 7%, var(--surface-soft));
+}
+
+.pdv-visita-card__probabilidad {
+  margin: 0;
+  font-size: .74rem;
+  font-weight: 800;
+}
+
+.pdv-visita-card__asistencia {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  color: var(--color-primario);
+  font-size: .72rem;
+  font-weight: 800;
+}
+
+.pdv-visita-card__asistencia svg {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+}
+
+.pdv-visita-card__chips {
+  margin-top: -.1rem;
+}
+
+.pdv-status-chip--accent {
+  color: var(--color-primario);
+  background: color-mix(in srgb, var(--color-primario) 12%, var(--surface-soft));
+  border: 1px solid color-mix(in srgb, var(--color-primario) 28%, var(--border));
 }
 
 .pdv-status-chip--ok {
-  background: color-mix(in srgb, #10b981 18%, var(--surface-soft));
-  color: #047857;
+  color: #16a34a;
+  background: color-mix(in srgb, #22c55e 12%, var(--surface-soft));
+  border: 1px solid color-mix(in srgb, #22c55e 24%, var(--border));
+}
+
+:root.dark .pdv-status-chip--ok {
+  color: #4ade80;
 }
 
 .pdv-status-chip--warn {
-  background: color-mix(in srgb, #f59e0b 18%, var(--surface-soft));
   color: #b45309;
+  background: color-mix(in srgb, #f59e0b 14%, var(--surface-soft));
+  border: 1px solid color-mix(in srgb, #f59e0b 28%, var(--border));
+}
+
+:root.dark .pdv-status-chip--warn {
+  color: #fbbf24;
 }
