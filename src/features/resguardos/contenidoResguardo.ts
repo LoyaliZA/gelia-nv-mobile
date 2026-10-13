@@ -3,6 +3,7 @@ import type {
   ResguardoDetalle,
   ResguardoTimelineItem,
 } from './resguardo.types'
+import { etiquetaEstadoFisico } from './estadoFisicoPieza'
 
 export interface FotoResguardo {
   key: string
@@ -121,15 +122,22 @@ export function contenidoResguardo(resguardo: ResguardoDetalle): ContenidoResgua
     })
   })
 
-  resguardo.registro_manual?.piezas?.forEach((pieza) => {
+  resguardo.registro_manual?.piezas?.forEach((pieza, indice) => {
     piezas.push({
-      key: `manual-pieza-${pieza.producto_id}`,
+      key: `manual-pieza-${pieza.producto_id}-${indice}`,
       titulo: pieza.descripcion?.trim() || pieza.sku || `Producto #${pieza.producto_id}`,
       detalle: [
         pieza.sku,
-        `Cantidad ${pieza.cantidad}`,
+        etiquetaEstadoFisico(pieza.estado_fisico),
+        pieza.unica_pieza ? 'Existencia única' : null,
+        pieza.mejor_ejemplar ? 'Mejor pieza' : null,
+        pieza.nota?.trim() || null,
       ].filter(Boolean).join(' · '),
-      fotos: [],
+      fotos: (pieza.evidencias ?? []).filter(esImagen).map((evidencia) => ({
+        key: `manual-detalle-${evidencia.id}`,
+        etiqueta: 'Detalle',
+        path: rutaEvidenciaResguardo(resguardo.id, evidencia.id),
+      })),
     })
   })
 

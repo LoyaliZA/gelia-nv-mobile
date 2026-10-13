@@ -1106,6 +1106,10 @@
   grid-template-columns: auto minmax(0, 1fr);
 }
 
+.pdv-client-search--scan {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+}
+
 .pdv-client-results--rows {
   gap: 0;
   overflow: hidden;
@@ -1588,6 +1592,79 @@
   background: var(--surface-solid);
   color: var(--text);
   cursor: pointer;
+}
+
+.pdv-piezas li.pdv-pieza-card {
+  display: grid;
+  align-items: stretch;
+  justify-content: stretch;
+  gap: .55rem;
+}
+
+.pdv-pieza-card header,
+.pdv-checks {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .6rem;
+}
+
+.pdv-pieza-card header div {
+  display: grid;
+  gap: .15rem;
+  min-width: 0;
+}
+
+.pdv-pieza-card small,
+.pdv-pieza-card header small {
+  color: var(--muted);
+  font-size: .68rem;
+}
+
+.pdv-checks {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.pdv-thumb-row {
+  display: flex;
+  gap: .45rem;
+  overflow-x: auto;
+}
+
+.pdv-thumb-row img,
+.pdv-thumb-row figure {
+  width: 4.5rem;
+  height: 4.5rem;
+  margin: 0;
+  border-radius: .7rem;
+  object-fit: cover;
+}
+
+.pdv-scanner {
+  position: relative;
+  overflow: hidden;
+  min-height: 220px;
+  border-radius: .9rem;
+  background: #111;
+}
+
+.pdv-scanner video {
+  width: 100% !important;
+  border-radius: .9rem;
+}
+
+.pdv-scanner__status {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  color: #fff;
+  font-size: .75rem;
+  font-weight: 800;
 }
 
 .pdv-confirm {

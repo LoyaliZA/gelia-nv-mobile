@@ -502,6 +502,7 @@ export function ResguardosView({ session }: Props) {
         <AltaResguardoSheet
           origenes={contexto?.origenes ?? []}
           session={session}
+          flujoCompleto={Boolean(contexto?.permisos.resguardos_flujo_completo)}
           onClose={() => setAltaOpen(false)}
           onSuccess={() => {
             setBandeja('por_recibir')

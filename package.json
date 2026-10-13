@@ -1,8 +1,8 @@
 {
   "name": "gelia-nv-movil",
   "private": true,
-  "version": "1.4.2",
-  "androidVersionCode": 3,
+  "version": "1.4.4",
+  "androidVersionCode": 5,
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -21,6 +21,7 @@
     "@capacitor/splash-screen": "^8.0.2",
     "@capgo/capacitor-passkey": "^8.5.2",
     "@simplewebauthn/browser": "^14.0.0",
+    "html5-qrcode": "^2.3.8",
     "lucide-react": "^1.47.0",
     "perfect-freehand": "^1.2.3",
     "react": "^19.2.8",

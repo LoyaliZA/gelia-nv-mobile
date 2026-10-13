@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ArrowRight,
   CheckCircle2,
@@ -15,7 +15,7 @@ import {
   confirmarRecepcionResguardo,
   pasarResguardoARecepcion,
 } from './resguardo.api'
-import type { ResguardoDetalleResponse } from './resguardo.types'
+import type { ResguardoDetalleResponse, ResguardoPiezaManual } from './resguardo.types'
 import { CustodiaResguardoSheet } from './CustodiaResguardoSheet'
 import { DevolucionResguardoSheet } from './DevolucionResguardoSheet'
 import { entregaEsTercero, EntregaResguardoSheet, nombreClienteResguardo } from './EntregaResguardoSheet'
@@ -61,8 +61,15 @@ export function ResguardoDetailSheet({
   const [custodiaOpen, setCustodiaOpen] = useState(false)
   const [devolucionOpen, setDevolucionOpen] = useState(false)
   const [reponerOpen, setReponerOpen] = useState(false)
+  const [piezasRecepcion, setPiezasRecepcion] = useState<ResguardoPiezaManual[]>([])
 
   const resguardo = detail?.resguardo
+  const flujoCompleto = Boolean(contexto?.permisos.resguardos_flujo_completo)
+  const corrigePiezas = Boolean(flujoCompleto && resguardo?.registro_manual)
+
+  useEffect(() => {
+    setPiezasRecepcion(resguardo?.registro_manual?.piezas ?? [])
+  }, [resguardo?.id, resguardo?.version])
   const tienePermiso = (clave: boolean | undefined, permiso: string) => Boolean(
     clave && session.permissions.includes(permiso),
   )
@@ -109,7 +116,28 @@ export function ResguardoDetailSheet({
 
     try {
       if (accion === 'recepcion') {
-        await confirmarRecepcionResguardo(session, resguardo.id, resguardo.version)
+        if (corrigePiezas && piezasRecepcion.length < 1) {
+          setAccionError('Registre las piezas del pedido antes de confirmar la recepción.')
+          setProcesando(null)
+          return
+        }
+        await confirmarRecepcionResguardo(
+          session,
+          resguardo.id,
+          resguardo.version,
+          corrigePiezas ? piezasRecepcion.map((pieza) => ({
+            producto_id: pieza.producto_id,
+            cantidad: pieza.cantidad,
+            nota: pieza.nota,
+            estado_fisico: pieza.estado_fisico || 'bueno',
+            unica_pieza: Boolean(pieza.unica_pieza),
+            mejor_ejemplar: Boolean(pieza.mejor_ejemplar),
+            evidencia_ids: (pieza.evidencia_ids?.length
+              ? pieza.evidencia_ids
+              : (pieza.evidencias ?? []).map((foto) => foto.id)
+            ).filter((id) => id > 0),
+          })) : undefined,
+        )
       } else {
         await pasarResguardoARecepcion(session, resguardo.id, resguardo.version)
       }
@@ -252,6 +280,53 @@ export function ResguardoDetailSheet({
               )}
 
               {accionError && <p className="form-error" role="alert">{accionError}</p>}
+
+              {puedeRecibir && corrigePiezas && (
+                <section className="pdv-detail-section">
+                  <h4>Piezas del pedido</h4>
+                  <p className="pdv-muted">Ajuste cantidades si el conteo no coincide. Ticket y foto del paquete se reutilizan.</p>
+                  <ul className="pdv-piezas">
+                    {piezasRecepcion.map((pieza) => (
+                      <li key={pieza.producto_id}>
+                        <strong>{pieza.descripcion || pieza.sku || `Producto #${pieza.producto_id}`}</strong>
+                        <input
+                          maxLength={500}
+                          onChange={(event) => setPiezasRecepcion((current) => current.map((item) => (
+                            item.producto_id === pieza.producto_id
+                              ? { ...item, nota: event.target.value }
+                              : item
+                          )))}
+                          placeholder="Detalle o nota"
+                          value={pieza.nota ?? ''}
+                        />
+                        <div>
+                          <button
+                            onClick={() => setPiezasRecepcion((current) => current.flatMap((item) => {
+                              if (item.producto_id !== pieza.producto_id) return [item]
+                              if (item.cantidad <= 1) return []
+                              return [{ ...item, cantidad: item.cantidad - 1 }]
+                            }))}
+                            type="button"
+                          >
+                            −
+                          </button>
+                          <span>{pieza.cantidad}</span>
+                          <button
+                            onClick={() => setPiezasRecepcion((current) => current.map((item) => (
+                              item.producto_id === pieza.producto_id
+                                ? { ...item, cantidad: Math.min(9999, item.cantidad + 1) }
+                                : item
+                            )))}
+                            type="button"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
 
               <div className="pdv-action-stack">
                 {puedeRecibir && (

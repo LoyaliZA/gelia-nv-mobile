@@ -94,6 +94,12 @@ export interface ResguardoPiezaManual {
   sku?: string | null
   descripcion?: string | null
   cantidad: number
+  nota?: string | null
+  estado_fisico?: string | null
+  unica_pieza?: boolean
+  mejor_ejemplar?: boolean
+  evidencia_ids?: number[]
+  evidencias?: ResguardoArchivo[]
 }
 
 export interface ResguardoRegistroManual {
@@ -232,14 +238,23 @@ export interface ProductoResguardo {
   id: number
   sku: string | null
   descripcion: string | null
-  folio: string | null
+  /** GELIA puede serializar folio como número en JSON. */
+  folio: string | number | null
   codigo_barras: string | null
 }
 
 export interface AltaResguardoPieza {
+  localKey: string
   productoId: number
   cantidad: number
   etiqueta: string
+  sku?: string | null
+  estadoFisico: 'bueno' | 'regular' | 'malo' | 'danado' | 'sin_existencia'
+  nota?: string
+  unicaPieza: boolean
+  mejorPieza: boolean
+  fotos: File[]
+  previews: string[]
 }
 
 export interface ResguardoAlmacenCustodia {
@@ -265,6 +280,8 @@ export interface ResguardoCustodiaFormResguardo {
   snapshot_cliente_nombre?: string | null
   etiqueta_retiro?: string | null
   bultos_pendientes_custodia: ResguardoBultoPendienteCustodia[]
+  registro_manual?: ResguardoRegistroManual | null
+  bultos_empaque_cedis?: ResguardoBultoEmpaque[]
 }
 
 export interface ResguardoCustodiaFormResponse {

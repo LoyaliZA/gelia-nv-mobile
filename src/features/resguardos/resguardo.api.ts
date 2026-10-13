@@ -61,6 +61,15 @@ export function confirmarRecepcionResguardo(
   session: MobileSession,
   id: number,
   version: number,
+  piezas?: Array<{
+    producto_id: number
+    cantidad: number
+    nota?: string | null
+    estado_fisico?: string | null
+    unica_pieza?: boolean
+    mejor_ejemplar?: boolean
+    evidencia_ids?: number[]
+  }>,
 ) {
   return apiRequest<{ resguardo: { id: number; version: number; estado: string; estado_etiqueta: string } }>(
     `/mobile/punto-venta/resguardos/${id}/recepcion`,
@@ -69,6 +78,7 @@ export function confirmarRecepcionResguardo(
       body: {
         version,
         idempotency_key: createIdempotencyKey('pdv:movil:rec', id),
+        ...(piezas ? { piezas } : {}),
       },
       ...auth(session),
     },
@@ -157,6 +167,15 @@ export function registrarResguardoManual(session: MobileSession, input: AltaResg
   input.piezas.forEach((pieza, index) => {
     form.append(`piezas[${index}][producto_id]`, String(pieza.productoId))
     form.append(`piezas[${index}][cantidad]`, String(pieza.cantidad))
+    form.append(`piezas[${index}][estado_fisico]`, pieza.estadoFisico || 'bueno')
+    form.append(`piezas[${index}][unica_pieza]`, pieza.unicaPieza ? '1' : '0')
+    form.append(`piezas[${index}][mejor_ejemplar]`, pieza.mejorPieza ? '1' : '0')
+    if (pieza.nota?.trim()) {
+      form.append(`piezas[${index}][nota]`, pieza.nota.trim())
+    }
+    pieza.fotos.forEach((archivo, foto) => {
+      form.append(`piezas[${index}][evidencias][${foto}]`, archivo, archivo.name)
+    })
   })
 
   return apiFormRequest<{

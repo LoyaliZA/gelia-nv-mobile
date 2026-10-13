@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { AlertTriangle, Camera, CheckCircle2, ImagePlus, LoaderCircle, PackageCheck, RefreshCw, X } from 'lucide-react'
 import type { MobileSession } from '../auth/auth.types'
 import { mensajeErrorPdv } from '../puntoVenta/puntoVenta.errors'
 import { ModalPortal } from '../../components/ui/ModalPortal'
+import { ImagenResguardo } from './ImagenResguardo'
+import { rutaDocumentoResguardo, rutaEvidenciaResguardo } from './contenidoResguardo'
 import {
   cameraNativaDisponible,
   capturarEvidencia,
@@ -36,7 +38,7 @@ function bultosIniciales(pendientes: ResguardoBultoPendienteCustodia[]): BultoEd
   return pendientes.map((bulto) => ({
     key: `bulto-${bulto.id}`,
     folio: bulto.folio,
-    tipo: bulto.tipo || 'caja',
+    tipo: 'bolsa',
     condicion: bulto.condicion || 'bueno',
     piezas: bulto.piezas && bulto.piezas > 0 ? bulto.piezas : 1,
   }))
@@ -56,6 +58,7 @@ export function CustodiaResguardoSheet({
   const [almacenId, setAlmacenId] = useState('')
   const [bultos, setBultos] = useState<BultoEditable[]>([])
   const [evidencias, setEvidencias] = useState<File[]>([])
+  const [previewsEvidencia, setPreviewsEvidencia] = useState<string[]>([])
   const [enviando, setEnviando] = useState(false)
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null)
   const [exito, setExito] = useState(false)
@@ -63,11 +66,16 @@ export function CustodiaResguardoSheet({
   const sessionRef = useRef(session)
   sessionRef.current = session
 
+  const previewsRef = useRef<string[]>([])
+
   const reiniciar = useCallback(() => {
     setFormulario(null)
     setAlmacenId('')
     setBultos([])
     setEvidencias([])
+    previewsRef.current.forEach((url) => URL.revokeObjectURL(url))
+    previewsRef.current = []
+    setPreviewsEvidencia([])
     setErrorCarga(null)
     setErrorEnvio(null)
     setExito(false)
@@ -98,6 +106,29 @@ export function CustodiaResguardoSheet({
     void cargar('inicial')
   }, [open, resguardoId, cargar])
 
+  const fotosRecepcion = useMemo(() => {
+    const resguardo = formulario?.resguardo
+    if (!resguardo) return []
+    const fotos: Array<{ key: string; etiqueta: string; path: string }> = []
+    resguardo.registro_manual?.evidencias?.forEach((evidencia) => {
+      if (evidencia.uso !== 'paquete' || !evidencia.id) return
+      fotos.push({
+        key: `paquete-${evidencia.id}`,
+        etiqueta: 'Recepción',
+        path: rutaEvidenciaResguardo(resguardo.id, evidencia.id),
+      })
+    })
+    resguardo.bultos_empaque_cedis?.forEach((bulto) => {
+      if (!bulto.foto_bulto?.id) return
+      fotos.push({
+        key: `cedis-${bulto.foto_bulto.id}`,
+        etiqueta: bulto.numero > 1 ? `Recepción ${bulto.numero}` : 'Recepción',
+        path: rutaDocumentoResguardo(resguardo.id, bulto.foto_bulto.id),
+      })
+    })
+    return fotos
+  }, [formulario])
+
   const catalogos = formulario?.catalogos ?? {}
   const tiposBulto = catalogos.tipos_bulto ?? { caja: 'Caja' }
   const condiciones = catalogos.condiciones_bulto ?? { bueno: 'Bueno' }
@@ -121,6 +152,9 @@ export function CustodiaResguardoSheet({
     const preparadas = await Promise.all(
       imagenes.map((archivo, indice) => prepararArchivoEvidencia(archivo, `evidencia-${indice}`)),
     )
+    const urls = preparadas.map((archivo) => URL.createObjectURL(archivo))
+    previewsRef.current = [...previewsRef.current, ...urls]
+    setPreviewsEvidencia(previewsRef.current)
     setEvidencias((prev) => [...prev, ...preparadas])
   }
 
@@ -131,7 +165,7 @@ export function CustodiaResguardoSheet({
 
   const capturar = async (source: 'camera' | 'photos') => {
     const archivo = await capturarEvidencia(source, `evidencia-${Date.now()}`)
-    if (archivo) setEvidencias((prev) => [...prev, archivo])
+    if (archivo) await agregarEvidencias([archivo])
   }
 
   const enviar = async (event: FormEvent) => {
@@ -304,7 +338,23 @@ export function CustodiaResguardoSheet({
               </section>
 
               <section className="pdv-detail-section">
-                <span className="pdv-form__label">Evidencia fotográfica (opcional)</span>
+                <h4>Evidencia de recepción</h4>
+                <p className="pdv-muted">
+                  Esta foto es la de la recepción y se conserva al pasar a custodia. El tipo queda en bolsa. La evidencia adicional es opcional.
+                </p>
+                {fotosRecepcion.length > 0 ? (
+                  <div className="pdv-evidence-grid">
+                    {fotosRecepcion.map((foto) => (
+                      <figure className="pdv-evidence-card" key={foto.key}>
+                        <span>{foto.etiqueta}</span>
+                        <ImagenResguardo alt={foto.etiqueta} path={foto.path} token={session.accessToken} />
+                      </figure>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="pdv-muted">No hay foto de recepción previa.</p>
+                )}
+                <span className="pdv-form__label">Evidencia adicional (opcional)</span>
                 <div className="pdv-photo__actions">
                   {cameraNativaDisponible() ? (
                     <>
@@ -335,8 +385,14 @@ export function CustodiaResguardoSheet({
                     </>
                   )}
                 </div>
-                {evidencias.length > 0 && (
-                  <p className="pdv-muted">{evidencias.length} imagen(es) adjunta(s)</p>
+                {previewsEvidencia.length > 0 && (
+                  <div className="pdv-thumb-row">
+                    {previewsEvidencia.map((url, indice) => (
+                      <figure key={url}>
+                        <img alt={`Evidencia adicional ${indice + 1}`} src={url} />
+                      </figure>
+                    ))}
+                  </div>
                 )}
               </section>
               </div>

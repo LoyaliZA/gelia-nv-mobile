@@ -7,6 +7,7 @@ export interface PdvSucursal {
 export interface PdvPermisos {
   resguardos_ver: boolean
   resguardos_registrar_manual: boolean
+  resguardos_flujo_completo: boolean
   resguardos_confirmar_llegada: boolean
   resguardos_enviar_a_custodia: boolean
   resguardos_confirmar_custodia: boolean

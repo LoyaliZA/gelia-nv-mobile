@@ -8,8 +8,9 @@ import type { PdvOrigenResguardo } from '../puntoVenta/puntoVenta.types'
 import { mensajeErrorPdv } from '../puntoVenta/puntoVenta.errors'
 import { abrirPrivacidad } from '../../lib/privacidad'
 import { ModalPortal } from '../../components/ui/ModalPortal'
-import { buscarProductosResguardo, registrarResguardoManual } from './resguardo.api'
-import type { AltaResguardoPieza, ProductoResguardo } from './resguardo.types'
+import { registrarResguardoManual } from './resguardo.api'
+import type { AltaResguardoPieza } from './resguardo.types'
+import { RegistroPiezasPanel, validarPiezasRegistro } from './RegistroPiezasPanel'
 import {
   AVISO_CAMARA_RESGUARDO,
   cameraNativaDisponible,
@@ -20,6 +21,7 @@ import {
 interface Props {
   origenes: PdvOrigenResguardo[]
   session: MobileSession
+  flujoCompleto?: boolean
   onClose: () => void
   onSuccess: () => Promise<void> | void
 }
@@ -34,11 +36,7 @@ const PASOS: Array<{ id: Paso; label: string }> = [
   { id: 'confirmar', label: 'Confirmar' },
 ]
 
-function etiquetaProducto(producto: ProductoResguardo) {
-  return producto.descripcion || producto.sku || producto.folio || `Producto #${producto.id}`
-}
-
-export function AltaResguardoSheet({ origenes, session, onClose, onSuccess }: Props) {
+export function AltaResguardoSheet({ origenes, session, flujoCompleto = false, onClose, onSuccess }: Props) {
   const { searchClientes } = useClienteSync()
   const paqueteInputRef = useRef<HTMLInputElement | null>(null)
   const ticketInputRef = useRef<HTMLInputElement | null>(null)
@@ -59,9 +57,6 @@ export function AltaResguardoSheet({ origenes, session, onClose, onSuccess }: Pr
   const [clienteResults, setClienteResults] = useState<ClienteMovil[]>([])
   const [cliente, setCliente] = useState<ClienteMovil | null>(null)
   const [buscandoCliente, setBuscandoCliente] = useState(false)
-  const [productoQuery, setProductoQuery] = useState('')
-  const [productoResults, setProductoResults] = useState<ProductoResguardo[]>([])
-  const [buscandoProducto, setBuscandoProducto] = useState(false)
   const [piezas, setPiezas] = useState<AltaResguardoPieza[]>([])
   const [capturando, setCapturando] = useState<'paquete' | 'ticket' | null>(null)
   const [enviando, setEnviando] = useState(false)
@@ -165,45 +160,6 @@ export function AltaResguardoSheet({ origenes, session, onClose, onSuccess }: Pr
     return () => window.clearTimeout(timer)
   }, [paso, cliente, clienteQuery])
 
-  const buscarProducto = async () => {
-    const q = productoQuery.trim()
-    if (q.length < 2) {
-      setError('Escribe al menos 2 caracteres para buscar el producto.')
-      return
-    }
-    setBuscandoProducto(true)
-    setError(null)
-    try {
-      const result = await buscarProductosResguardo(session, q)
-      setProductoResults(result.data)
-      if (result.data.length === 0) setError('No hay productos que coincidan con la búsqueda.')
-    } catch (err) {
-      setError(mensajeErrorPdv(err, 'No se pudo buscar productos.'))
-    } finally {
-      setBuscandoProducto(false)
-    }
-  }
-
-  const agregarProducto = (producto: ProductoResguardo) => {
-    setPiezas((current) => {
-      const existing = current.find((pieza) => pieza.productoId === producto.id)
-      if (existing) {
-        return current.map((pieza) => (
-          pieza.productoId === producto.id
-            ? { ...pieza, cantidad: Math.min(9999, pieza.cantidad + 1) }
-            : pieza
-        ))
-      }
-      return [...current, {
-        productoId: producto.id,
-        cantidad: 1,
-        etiqueta: etiquetaProducto(producto),
-      }]
-    })
-    setProductoResults([])
-    setProductoQuery('')
-  }
-
   const validarPaso = () => {
     if (paso === 'paquete' && !fotoPaquete) return 'Toma la foto del paquete para continuar.'
     if (paso === 'ticket') {
@@ -219,6 +175,10 @@ export function AltaResguardoSheet({ origenes, session, onClose, onSuccess }: Pr
       }
     }
     if (paso === 'cliente' && !cliente?.id) return 'Selecciona el cliente del resguardo.'
+    if (paso === 'productos') {
+      const piezasInvalidas = validarPiezasRegistro(piezas, flujoCompleto)
+      if (piezasInvalidas) return piezasInvalidas
+    }
     return null
   }
 
@@ -241,6 +201,12 @@ export function AltaResguardoSheet({ origenes, session, onClose, onSuccess }: Pr
     }
     if (enviaOtra && nombreOtra.trim().length < 2) {
       setError('Captura el nombre de la persona que recibe.')
+      return
+    }
+    const piezasInvalidas = validarPiezasRegistro(piezas, flujoCompleto)
+    if (piezasInvalidas) {
+      setError(piezasInvalidas)
+      setPaso('productos')
       return
     }
 
@@ -388,62 +354,12 @@ export function AltaResguardoSheet({ origenes, session, onClose, onSuccess }: Pr
           )}
 
           {paso === 'productos' && (
-            <>
-              <p className="pdv-muted">Este paso es opcional. Agrega los productos del ticket si ya están identificados.</p>
-              <div className="pdv-client-search">
-                <Search size={17} />
-                <input
-                  onChange={(event) => setProductoQuery(event.target.value)}
-                  placeholder="SKU, folio o descripción"
-                  value={productoQuery}
-                />
-                <button className="secondary-button" disabled={buscandoProducto} onClick={() => void buscarProducto()} type="button">
-                  {buscandoProducto ? 'Buscando…' : 'Buscar'}
-                </button>
-              </div>
-              {productoResults.length > 0 && (
-                <div className="pdv-client-results">
-                  {productoResults.map((producto) => (
-                    <button key={producto.id} onClick={() => agregarProducto(producto)} type="button">
-                      <span>{producto.sku || producto.folio || 'Sin SKU'}</span>
-                      <strong>{etiquetaProducto(producto)}</strong>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {piezas.length > 0 && (
-                <ul className="pdv-piezas">
-                  {piezas.map((pieza) => (
-                    <li key={pieza.productoId}>
-                      <strong>{pieza.etiqueta}</strong>
-                      <div>
-                        <button
-                          onClick={() => setPiezas((current) => current.flatMap((item) => {
-                            if (item.productoId !== pieza.productoId) return [item]
-                            if (item.cantidad <= 1) return []
-                            return [{ ...item, cantidad: item.cantidad - 1 }]
-                          }))}
-                          type="button"
-                        >
-                          −
-                        </button>
-                        <span>{pieza.cantidad}</span>
-                        <button
-                          onClick={() => setPiezas((current) => current.map((item) => (
-                            item.productoId === pieza.productoId
-                              ? { ...item, cantidad: Math.min(9999, item.cantidad + 1) }
-                              : item
-                          )))}
-                          type="button"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
+            <RegistroPiezasPanel
+              flujoCompleto={flujoCompleto}
+              onChange={setPiezas}
+              piezas={piezas}
+              session={session}
+            />
           )}
 
           {paso === 'confirmar' && fotoPaquete && fotoTicket && cliente && origen && (
@@ -457,7 +373,11 @@ export function AltaResguardoSheet({ origenes, session, onClose, onSuccess }: Pr
                 <div><dt>Cliente</dt><dd>{cliente.nombre}</dd></div>
                 <div><dt>Productos</dt><dd>{piezas.length === 0 ? 'Sin productos' : `${piezas.length} partida${piezas.length === 1 ? '' : 's'}`}</dd></div>
               </dl>
-              <p className="pdv-muted">El resguardo quedará en Por recibir, igual que una recepción esperada de pedidos.</p>
+              <p className="pdv-muted">
+                {flujoCompleto
+                  ? 'El resguardo queda en Confirmar llegada. Ticket y foto se reutilizan en los pasos siguientes.'
+                  : 'El resguardo quedará en Por recibir, igual que una recepción esperada de pedidos.'}
+              </p>
             </div>
           )}
             </div>
@@ -481,7 +401,7 @@ export function AltaResguardoSheet({ origenes, session, onClose, onSuccess }: Pr
             {paso === 'confirmar' ? (
               <button className="primary-button" disabled={enviando} onClick={() => void confirmar()} type="button">
                 {enviando ? <LoaderCircle className="spin" size={16} /> : null}
-                Confirmar recepción
+                {flujoCompleto ? 'Guardar para recepción' : 'Confirmar recepción'}
               </button>
             ) : (
               <button className="primary-button" onClick={continuar} type="button">

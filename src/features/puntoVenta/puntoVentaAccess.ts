@@ -4,6 +4,7 @@ export const PDV_PERMISSION = {
   acceder: 'punto_venta.acceder',
   resguardosVer: 'pdv.resguardos.ver',
   resguardosRegistrarManual: 'pdv.resguardos.registrar_manual',
+  resguardosFlujoCompleto: 'pdv.resguardos.flujo_completo',
   resguardosConfirmarLlegada: 'pdv.resguardos.confirmar_llegada',
   resguardosEnviarACustodia: 'pdv.resguardos.enviar_a_custodia',
   resguardosConfirmarCustodia: 'pdv.resguardos.confirmar_custodia',
