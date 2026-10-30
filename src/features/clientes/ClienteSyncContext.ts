@@ -28,6 +28,8 @@ export interface ClienteSyncContextValue {
   findCliente: (numeroCliente: string) => Promise<ClienteLookupResult>
   searchClientes: (termino: string, page?: number) => Promise<ClienteSearchResult>
   syncNow: () => Promise<void>
+  resincronizarCatalogo: () => Promise<void>
+  eliminarBaseLocal: () => Promise<void>
 }
 
 export const ClienteSyncContext = createContext<ClienteSyncContextValue | null>(null)

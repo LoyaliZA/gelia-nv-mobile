@@ -113,6 +113,40 @@ export async function fetchMobileMe(session: MobileSession): Promise<MobileSessi
   }
 }
 
+const UUID_VALIDO = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function uuidDeVerificacion(base: string) {
+  if (!UUID_VALIDO.test(base)) return crypto.randomUUID()
+  const chars = base.toLowerCase().split('')
+  const last = chars.length - 1
+  chars[last] = chars[last] === '0' ? '1' : '0'
+  return chars.join('')
+}
+
+export async function verificarSuperAdmin(credentials: LoginCredentials) {
+  const uuid = uuidDeVerificacion(await getOrCreateDeviceUuid())
+  const response = await apiRequest<MobileLoginResponse>('/mobile/login', {
+    method: 'POST',
+    body: {
+      login: credentials.login,
+      password: credentials.password,
+      device_uuid: uuid,
+      device_name: 'Verificación de kiosco',
+      platform: Capacitor.getPlatform(),
+      app_version: APP_VERSION,
+    },
+    ...loginRequest,
+  })
+  const temporal = sessionFromLogin(response)
+  const permitido = temporal.permissions.includes('usuarios.gestionar')
+  try {
+    await logoutMobile(temporal)
+  } catch {
+    // El token temporal no reemplaza la sesión de quien opera el equipo.
+  }
+  return permitido
+}
+
 export async function logoutMobile(session: MobileSession) {
   await apiRequest<{ message: string }>('/mobile/logout', {
     method: 'POST',

@@ -9,6 +9,13 @@ const META_STORE = 'metadata'
 
 let epoch = 0
 let chain: Promise<void> = Promise.resolve()
+let persistenciaSolicitada = false
+
+function solicitarPersistencia() {
+  if (persistenciaSolicitada || typeof navigator === 'undefined' || !navigator.storage?.persist) return
+  persistenciaSolicitada = true
+  void navigator.storage.persist()
+}
 
 function exclusive<T>(task: () => Promise<T>): Promise<T> {
   const run = chain.then(task, task)
@@ -35,9 +42,12 @@ export interface ClienteSyncMetadata {
   complete: boolean
   lastSyncedAt: string | null
   lastReconciledTotal: number | null
+  requiereResincronizacion: boolean
+  descargaSuspendida: boolean
 }
 
 function openDatabase(): Promise<IDBDatabase> {
+  solicitarPersistencia()
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION)
     request.onupgradeneeded = () => {
@@ -242,7 +252,14 @@ export async function leerSyncMetadata(scopeKey: string): Promise<ClienteSyncMet
   const transaction = database.transaction(META_STORE, 'readonly')
   const value = await requestResult(transaction.objectStore(META_STORE).get(scopeKey))
   database.close()
-  return (value as ClienteSyncMetadata | undefined) ?? null
+  if (!value) return null
+  const metadata = value as ClienteSyncMetadata
+  return {
+    ...metadata,
+    lastReconciledTotal: metadata.lastReconciledTotal ?? null,
+    requiereResincronizacion: metadata.requiereResincronizacion === true,
+    descargaSuspendida: metadata.descargaSuspendida === true,
+  }
 }
 
 export async function guardarSyncMetadata(metadata: ClienteSyncMetadata) {

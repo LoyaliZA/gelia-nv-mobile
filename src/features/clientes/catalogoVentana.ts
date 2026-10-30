@@ -3,6 +3,14 @@ export const OFFLINE_CATALOG_WINDOW_MS = 24 * 60 * 60 * 1000
 export const MENSAJE_CATALOGO_REQUIERE_CONEXION =
   'Hace falta conexión para validar el acceso al catálogo. Los datos de este dispositivo no se consultan hasta revalidar.'
 
+export function mensajeCatalogoRequiereConexion(guardados: number) {
+  if (guardados > 0) {
+    const etiqueta = guardados === 1 ? 'cliente guardado' : 'clientes guardados'
+    return `Hace falta conexión para validar el acceso al catálogo. Hay ${guardados} ${etiqueta} en este dispositivo; no se consultan hasta revalidar.`
+  }
+  return MENSAJE_CATALOGO_REQUIERE_CONEXION
+}
+
 export type CatalogoVentana =
   | { allowed: true }
   | { allowed: false; reason: 'missing' | 'expired' | 'clock' }

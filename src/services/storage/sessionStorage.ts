@@ -156,6 +156,15 @@ async function migrarSesionNativa(legacyRaw: string | null) {
   }
 }
 
+async function leerSesionNativaConReintento() {
+  try {
+    return await leerSesionNativa()
+  } catch {
+    await new Promise((resolve) => window.setTimeout(resolve, 400))
+    return leerSesionNativa()
+  }
+}
+
 async function hidratarNativo(): Promise<MobileSession | null> {
   const migrated = await Preferences.get({ key: MIGRATED_KEY })
   if (migrated.value !== '1') {
@@ -165,13 +174,10 @@ async function hidratarNativo(): Promise<MobileSession | null> {
   }
 
   try {
-    const session = await leerSesionNativa()
+    const session = await leerSesionNativaConReintento()
     borrarCopiasWebView()
-    if (session) return session
-    await borrarSecretoNativo()
-    return null
+    return session
   } catch {
-    await borrarSecretoNativo()
     return null
   }
 }

@@ -5,6 +5,7 @@ import { ApiError } from '../../lib/api/apiClient'
 import { ACCENT_COLORS } from '../../theme/applyGeliaTheme'
 import { clearThemeOverride } from '../../hooks/useThemeToggle'
 import type { MobileSession, TemaVisual } from '../auth/auth.types'
+import { useModosDispositivo } from '../dispositivo/useModosDispositivo'
 import { updateMobileTemaVisual } from './profile.api'
 
 interface PreferenciasViewProps {
@@ -16,7 +17,9 @@ const COLOR_OPTIONS = Object.keys(ACCENT_COLORS)
 
 export function PreferenciasView({ onSessionUpdate, session }: PreferenciasViewProps) {
   const tema = session.temaVisual
+  const { modoSimple, setModoSimple } = useModosDispositivo()
   const [guardando, setGuardando] = useState(false)
+  const [guardandoModo, setGuardandoModo] = useState(false)
   const [error, setError] = useState('')
   const [mensaje, setMensaje] = useState('')
 
@@ -104,6 +107,23 @@ export function PreferenciasView({ onSessionUpdate, session }: PreferenciasViewP
         {error && <div className="form-error" role="alert">{error}</div>}
         {mensaje && <p className="passkey-success">{mensaje}</p>}
         {guardando && <p className="preferences-saving">Guardando cambios…</p>}
+      </section>
+
+      <section className="profile-card preferences-card">
+        <h2>Modo simple</h2>
+        <p>Deja solo Consultar clientes y Visitas del día, con un teclado numérico grande. No cambia el modo kiosco.</p>
+        <button
+          aria-pressed={modoSimple}
+          className={`preferences-mode-btn${modoSimple ? ' preferences-mode-btn--active' : ''}`}
+          disabled={guardandoModo}
+          onClick={() => {
+            setGuardandoModo(true)
+            void setModoSimple(!modoSimple).finally(() => setGuardandoModo(false))
+          }}
+          type="button"
+        >
+          {modoSimple ? 'Desactivar modo simple' : 'Activar modo simple'}
+        </button>
       </section>
 
       <PasskeysPanel session={session} />

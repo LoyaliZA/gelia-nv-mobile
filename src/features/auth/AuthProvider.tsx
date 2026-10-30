@@ -5,6 +5,7 @@ import type { PropsWithChildren } from 'react'
 import { purgarScopesObsoletos, purgarTodoElCatalogo } from '../clientes/cliente.storage'
 import { detenerSincronizacion } from '../clientes/cliente.sync.engine'
 import { ApiError } from '../../lib/api/apiClient'
+import { guardarLoginRecordado } from '../../services/storage/preferenciasDispositivo'
 import { clearSession, hydrateStorage, peekSession, writeSession } from '../../services/storage/sessionStorage'
 import { applyGeliaTheme, clearGeliaTheme } from '../../theme/applyGeliaTheme'
 import { fetchMobileMe, loginMobile, loginWithPasskey as loginWithPasskeyApi, logoutMobile } from './auth.api'
@@ -13,6 +14,11 @@ import type { AuthState } from './AuthContext'
 import type { LoginCredentials, MobileSession } from './auth.types'
 
 const SESION_NO_GUARDADA = 'No se pudo guardar la sesión en este dispositivo. Vuelve a intentar el acceso.'
+const REVALIDACION_MS = 15 * 60_000
+
+function marcaTiempo() {
+  return Date.now()
+}
 
 function scopeKey(session: MobileSession) {
   return `${session.user.id}:${session.scopeVersion}`
@@ -22,7 +28,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [state, setState] = useState<AuthState>({ status: 'booting' })
   const stateRef = useRef(state)
   const refreshing = useRef(false)
+  const ultimaRevalidacion = useRef(0)
   const refrescarRef = useRef<(session: MobileSession) => Promise<void>>(async () => undefined)
+  const refrescarSiTocaRef = useRef<(session: MobileSession) => void>(() => undefined)
 
   useEffect(() => {
     stateRef.current = state
@@ -87,12 +95,20 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setState({ status: 'authenticated', session })
   }
 
-  const refrescar = async (session: MobileSession) => {
+  const refrescar = async (session: MobileSession, intento = 0) => {
+    if (intento === 0 && refreshing.current) return
+    if (intento === 0) refreshing.current = true
     try {
       const fresh = await fetchMobileMe(session)
+      ultimaRevalidacion.current = marcaTiempo()
       await publicar(fresh)
     } catch (error: unknown) {
       if (error instanceof ApiError && error.status === 401) {
+        if (intento < 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, 800))
+          await refrescar(session, intento + 1)
+          return
+        }
         await cerrarPorRevocacion()
         return
       }
@@ -102,12 +118,20 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
       applyGeliaTheme(session.temaVisual)
       setState({ status: 'authenticated', session })
+    } finally {
+      if (intento === 0) refreshing.current = false
     }
+  }
+
+  const refrescarSiToca = (session: MobileSession) => {
+    if (marcaTiempo() - ultimaRevalidacion.current < REVALIDACION_MS) return
+    void refrescar(session)
   }
 
   useEffect(() => {
     refrescarRef.current = refrescar
-  }, [refrescar])
+    refrescarSiTocaRef.current = refrescarSiToca
+  })
 
   useEffect(() => {
     let active = true
@@ -119,6 +143,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return
       }
       applyGeliaTheme(stored.temaVisual)
+      setState({ status: 'authenticated', session: stored })
       void refrescarRef.current(stored)
     })
 
@@ -126,7 +151,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       if (document.visibilityState !== 'visible') return
       const current = stateRef.current
       if (current.status !== 'authenticated') return
-      void refrescarRef.current(current.session)
+      refrescarSiTocaRef.current(current.session)
     }
 
     document.addEventListener('visibilitychange', onVisible)
@@ -137,7 +162,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         if (!isActive) return
         const current = stateRef.current
         if (current.status !== 'authenticated') return
-        void refrescarRef.current(current.session)
+        refrescarSiTocaRef.current(current.session)
       }).then((listener) => {
         if (!active) {
           void listener.remove()
@@ -165,6 +190,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       await purgarTodoElCatalogo()
       const saved = await publicar(session)
       if (!saved) throw new Error(SESION_NO_GUARDADA)
+      await guardarLoginRecordado(credentials.login).catch(() => undefined)
+      ultimaRevalidacion.current = Date.now()
     },
     loginWithPasskey: async (login: string) => {
       const session = await loginWithPasskeyApi(login)
@@ -172,6 +199,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       await purgarTodoElCatalogo()
       const saved = await publicar(session)
       if (!saved) throw new Error(SESION_NO_GUARDADA)
+      await guardarLoginRecordado(login).catch(() => undefined)
+      ultimaRevalidacion.current = Date.now()
     },
     logout: async () => {
       detenerSincronizacion()
@@ -190,15 +219,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
     cerrarPorRevocacion,
     revocarCatalogo,
     revalidarSesion: async () => {
-      if (refreshing.current) return
       const current = stateRef.current
       if (current.status !== 'authenticated') return
-      refreshing.current = true
-      try {
-        await refrescar(current.session)
-      } finally {
-        refreshing.current = false
-      }
+      await refrescar(current.session)
     },
   }
 

@@ -5,6 +5,7 @@ import { MobileAccessSheet } from '../components/navigation/MobileAccessSheet'
 import { MobileBottomBar } from '../components/navigation/MobileBottomBar'
 import { MobileProfileSheet } from '../components/navigation/MobileProfileSheet'
 import type { GeliaUser, MobileSession, TemaVisual } from '../features/auth/auth.types'
+import { useModosDispositivo } from '../features/dispositivo/useModosDispositivo'
 import { useThemeToggle } from '../hooks/useThemeToggle'
 
 interface MobileAppLayoutProps extends PropsWithChildren {
@@ -28,6 +29,7 @@ export function MobileAppLayout({
   const [accessOpen, setAccessOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const { isDarkMode, toggleTheme } = useThemeToggle(temaVisual)
+  const { modoKiosco } = useModosDispositivo()
 
   const closeSheets = useCallback(() => {
     setAccessOpen(false)
@@ -97,7 +99,12 @@ export function MobileAppLayout({
       <MobileBottomBar
         accessOpen={accessOpen}
         isDarkMode={isDarkMode}
+        kioskActive={modoKiosco}
         onBack={handleBack}
+        onOpenKiosk={() => {
+          closeSheets()
+          onNavigate('perfil')
+        }}
         onToggleAccess={toggleAccess}
         onToggleProfile={toggleProfile}
         onToggleTheme={toggleTheme}

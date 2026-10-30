@@ -1,7 +1,9 @@
+import { useEffect } from 'react'
 import { GeliaLogo } from '../components/ui/GeliaLogo'
 import { DashboardView } from '../features/dashboard/DashboardView'
 import { LoginView } from '../features/auth/LoginView'
 import { useAuth } from '../features/auth/useAuth'
+import { useModosDispositivo } from '../features/dispositivo/useModosDispositivo'
 import { ClienteAccessDeniedView } from '../features/clientes/ClienteAccessDeniedView'
 import { ClienteBusquedaView } from '../features/clientes/ClienteBusquedaView'
 import { ClienteSyncProvider } from '../features/clientes/ClienteSyncProvider'
@@ -23,7 +25,13 @@ import { useAppRoute } from './routes'
 
 export function AppRouter() {
   const auth = useAuth()
+  const { listo, modoSimple } = useModosDispositivo()
   const { route, navigate } = useAppRoute()
+
+  useEffect(() => {
+    if (!listo || !modoSimple) return
+    if (route === 'resguardos' || route === 'turnos') navigate('inicio')
+  }, [listo, modoSimple, navigate, route])
 
   if (auth.status === 'booting') {
     return (
@@ -55,7 +63,9 @@ export function AppRouter() {
           temaVisual={auth.session.temaVisual}
           user={auth.session.user}
         >
-          {route === 'inicio' && <DashboardView onNavigate={navigate} session={auth.session} />}
+          {route === 'inicio' && (
+            <DashboardView modoSimple={modoSimple} onNavigate={navigate} session={auth.session} />
+          )}
 
           {route === 'clientes' && (
             canConsultarClientes

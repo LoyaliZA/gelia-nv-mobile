@@ -5,6 +5,7 @@ import { GeliaLogo } from '../../components/ui/GeliaLogo'
 import { Icon } from '../../components/ui/Icon'
 import { ApiError } from '../../lib/api/apiClient'
 import { abrirPrivacidad } from '../../lib/privacidad'
+import { leerLoginRecordado } from '../../services/storage/preferenciasDispositivo'
 import { passkeyLoginOptions } from './auth.api'
 import { usePasskeyDisponible } from './usePasskeyDisponible'
 import type { LoginCredentials } from './auth.types'
@@ -20,21 +21,26 @@ export function LoginView({ onLogin, onLoginWithPasskey }: LoginViewProps) {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [passkeySubmitting, setPasskeySubmitting] = useState(false)
-  const [mostrarHuella, setMostrarHuella] = useState(false)
+  const [huellaRemota, setHuellaRemota] = useState(false)
   const { disponible: passkeyDisponible, evaluando: evaluandoPasskey } = usePasskeyDisponible()
+  const consultaHuella = passkeyDisponible && !evaluandoPasskey && login.trim().length >= 3
+  const mostrarHuella = consultaHuella && huellaRemota
 
   useEffect(() => {
-    if (!passkeyDisponible || evaluandoPasskey || login.trim().length < 3) {
-      setMostrarHuella(false)
-      return
-    }
+    void leerLoginRecordado().then((recordado) => {
+      if (recordado) setLogin((current) => current || recordado)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!consultaHuella) return undefined
     const timeout = window.setTimeout(() => {
       void passkeyLoginOptions(login.trim())
-        .then((options) => setMostrarHuella((options.allowCredentials?.length ?? 0) > 0))
-        .catch(() => setMostrarHuella(false))
+        .then((options) => setHuellaRemota((options.allowCredentials?.length ?? 0) > 0))
+        .catch(() => setHuellaRemota(false))
     }, 400)
     return () => window.clearTimeout(timeout)
-  }, [evaluandoPasskey, login, passkeyDisponible])
+  }, [consultaHuella, login])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()

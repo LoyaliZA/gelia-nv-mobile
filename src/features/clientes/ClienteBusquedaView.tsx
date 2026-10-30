@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Icon } from '../../components/ui/Icon'
+import { useModosDispositivo } from '../dispositivo/useModosDispositivo'
 import { ClienteSyncStatus } from './ClienteSyncStatus'
 import type { ClienteSearchMeta } from './ClienteSyncContext'
 import { normalizeNumeroCliente } from './cliente.numero'
@@ -8,10 +9,17 @@ import type { ClienteMovil } from './cliente.types'
 import { useClienteSync } from './useClienteSync'
 
 const MIN_NAME_LENGTH = 2
+const TECLAS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'borrar', '0', 'buscar'] as const
 
 type LookupMode = 'number' | 'name'
 
+function ocultarTeclado() {
+  const active = document.activeElement
+  if (active instanceof HTMLElement) active.blur()
+}
+
 export function ClienteBusquedaView() {
+  const { modoSimple } = useModosDispositivo()
   const [lookupMode, setLookupMode] = useState<LookupMode>('number')
   const [numberQuery, setNumberQuery] = useState('')
   const [nameQuery, setNameQuery] = useState('')
@@ -25,7 +33,11 @@ export function ClienteBusquedaView() {
   const [source, setSource] = useState<'api' | 'local' | null>(null)
   const [validationError, setValidationError] = useState<string | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
+  const numberInputRef = useRef<HTMLInputElement>(null)
+  const nameInputRef = useRef<HTMLInputElement>(null)
+  const resultHeadingRef = useRef<HTMLElement>(null)
   const { findCliente, searchClientes, online, state, canSyncClientes } = useClienteSync()
+  const tecladoNumerico = modoSimple && lookupMode === 'number' && !searched
 
   const clearResults = () => {
     setMode(null)
@@ -48,32 +60,35 @@ export function ClienteBusquedaView() {
     clearResults()
   }
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+  const buscarNumero = async (raw: string) => {
+    const numero = normalizeNumeroCliente(raw)
+    if (!numero) return
     setValidationError(null)
     setApiError(null)
     setCliente(null)
     setResults([])
     setMeta(null)
-
-    if (lookupMode === 'number') {
-      const numero = normalizeNumeroCliente(numberQuery)
-      if (!numero) return
-      setLoading(true)
-      try {
-        setMode('number')
-        const result = await findCliente(numero)
-        setCliente(result.cliente)
-        setSource(result.source)
-        setApiError(result.error ?? null)
-        setSearched(true)
-      } finally {
-        setLoading(false)
-      }
-      return
+    setLoading(true)
+    try {
+      setMode('number')
+      const result = await findCliente(numero)
+      setCliente(result.cliente)
+      setSource(result.source)
+      setApiError(result.error ?? null)
+      setSearched(true)
+    } finally {
+      setLoading(false)
+      ocultarTeclado()
     }
+  }
 
-    const trimmed = nameQuery.trim()
+  const buscarNombre = async (raw: string) => {
+    const trimmed = raw.trim()
+    setValidationError(null)
+    setApiError(null)
+    setCliente(null)
+    setResults([])
+    setMeta(null)
     if (!trimmed) return
     if (trimmed.length < MIN_NAME_LENGTH) {
       setValidationError(`Ingresa al menos ${MIN_NAME_LENGTH} caracteres para buscar por nombre.`)
@@ -92,7 +107,17 @@ export function ClienteBusquedaView() {
       setSearched(true)
     } finally {
       setLoading(false)
+      ocultarTeclado()
     }
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (lookupMode === 'number') {
+      await buscarNumero(numberQuery)
+      return
+    }
+    await buscarNombre(nameQuery)
   }
 
   const loadMore = async () => {
@@ -105,6 +130,7 @@ export function ClienteBusquedaView() {
       setSource(pageResult.source)
     } finally {
       setLoadingMore(false)
+      ocultarTeclado()
     }
   }
 
@@ -114,19 +140,43 @@ export function ClienteBusquedaView() {
     setMeta(null)
     setMode('number')
     setSearched(true)
+    ocultarTeclado()
   }
+
+  const pulsarTecla = (tecla: (typeof TECLAS)[number]) => {
+    if (loading) return
+    if (tecla === 'borrar') {
+      setNumberQuery((current) => current.slice(0, -1))
+      setSearched(false)
+      return
+    }
+    if (tecla === 'buscar') {
+      void buscarNumero(numberQuery)
+      return
+    }
+    setNumberQuery((current) => `${current}${tecla}`.replace(/\D/g, '').slice(0, 12))
+    setSearched(false)
+    setValidationError(null)
+  }
+
+  useEffect(() => {
+    if (!searched) return
+    resultHeadingRef.current?.focus()
+  }, [searched, cliente?.id, mode])
 
   const catalogReady = state.phase === 'ready' || state.downloaded > 0
   const canSubmit = lookupMode === 'number'
     ? numberQuery.length > 0 && !loading
     : nameQuery.trim().length > 0 && !loading
   const hasMoreResults = meta !== null && meta.current_page < meta.last_page
+  const mostrarFicha = Boolean(cliente)
+  const mostrarLista = mode === 'name' && results.length > 0 && !cliente
 
   return (
     <div className="page-stack client-lookup">
       <header className="page-heading page-heading--surface">
         <span className="eyebrow">OPERACIONES_</span>
-        <h1>Consultar Clientes</h1>
+        <h1>Consultar clientes</h1>
         <p>Busca por número o por nombre para corroborar la información del cliente autorizado.</p>
         {canSyncClientes ? <ClienteSyncStatus /> : null}
       </header>
@@ -154,7 +204,7 @@ export function ClienteBusquedaView() {
             Por nombre
           </button>
         </div>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={(event) => void handleSubmit(event)}>
           {lookupMode === 'number' ? (
             <label htmlFor="cliente-numero">Número de cliente</label>
           ) : (
@@ -164,21 +214,26 @@ export function ClienteBusquedaView() {
             <div className="lookup-input-wrap lookup-input-wrap--search">
               <span><Icon name="search" /></span>
               {lookupMode === 'number' ? (
-                <input
-                  autoComplete="off"
-                  autoFocus
-                  enterKeyHint="search"
-                  id="cliente-numero"
-                  inputMode="numeric"
-                  onChange={(event) => {
-                    setNumberQuery(event.target.value.replace(/\D/g, ''))
-                    setSearched(false)
-                    setValidationError(null)
-                  }}
-                  pattern="[0-9]*"
-                  placeholder="Ej. 7 o 10045"
-                  value={numberQuery}
-                />
+                tecladoNumerico ? (
+                  <output className="lookup-number-display" id="cliente-numero">{numberQuery || '—'}</output>
+                ) : (
+                  <input
+                    autoComplete="off"
+                    autoFocus={!modoSimple}
+                    enterKeyHint="search"
+                    id="cliente-numero"
+                    inputMode="numeric"
+                    onChange={(event) => {
+                      setNumberQuery(event.target.value.replace(/\D/g, ''))
+                      setSearched(false)
+                      setValidationError(null)
+                    }}
+                    pattern="[0-9]*"
+                    placeholder="Ej. 7 o 10045"
+                    ref={numberInputRef}
+                    value={numberQuery}
+                  />
+                )
               ) : (
                 <input
                   autoComplete="off"
@@ -192,21 +247,39 @@ export function ClienteBusquedaView() {
                     setValidationError(null)
                   }}
                   placeholder="Ej. Farmacia Central"
+                  ref={nameInputRef}
                   value={nameQuery}
                 />
               )}
             </div>
-            <button aria-label="Buscar cliente" className="search-button" disabled={!canSubmit} type="submit">
-              <Icon name={loading ? 'refresh' : 'search'} />
-            </button>
+            {!tecladoNumerico && (
+              <button aria-label="Buscar cliente" className="search-button" disabled={!canSubmit} type="submit">
+                <Icon name={loading ? 'refresh' : 'search'} />
+              </button>
+            )}
           </div>
           {validationError && <p className="form-error lookup-form-error">{validationError}</p>}
+          {tecladoNumerico && (
+            <div aria-label="Teclado numérico" className="numeric-keypad" role="group">
+              {TECLAS.map((tecla) => (
+                <button
+                  className={`numeric-key${tecla === 'buscar' ? ' numeric-key--search' : ''}${tecla === 'borrar' ? ' numeric-key--action' : ''}`}
+                  disabled={loading || (tecla === 'buscar' && numberQuery.length === 0)}
+                  key={tecla}
+                  onClick={() => pulsarTecla(tecla)}
+                  type="button"
+                >
+                  {tecla === 'borrar' ? 'Borrar' : tecla === 'buscar' ? 'Buscar' : tecla}
+                </button>
+              ))}
+            </div>
+          )}
         </form>
         <div className="lookup-hint"><Icon name="shield" /> Consulta limitada a los clientes autorizados para tu usuario.</div>
       </section>
 
-      {mode === 'name' && results.length > 0 && !cliente && (
-        <section className="cliente-results" aria-live="polite">
+      {mostrarLista && (
+        <section className="cliente-results" aria-live="polite" ref={resultHeadingRef} tabIndex={-1}>
           <div className="cliente-results-header">
             <strong>{meta?.total ?? results.length} coincidencia{(meta?.total ?? results.length) === 1 ? '' : 's'}</strong>
             <span>Consulta desde {source === 'api' ? 'GELIA' : 'datos locales'}</span>
@@ -235,8 +308,8 @@ export function ClienteBusquedaView() {
         </section>
       )}
 
-      {cliente && (
-        <section className="client-result client-result--success" aria-live="polite">
+      {mostrarFicha && cliente && (
+        <section className="client-result client-result--success" aria-live="polite" ref={resultHeadingRef} tabIndex={-1}>
           <div className="result-status"><span /> Cliente {cliente.es_inactivo ? 'inactivo' : 'activo'}</div>
           <div className="result-source">Consulta desde {source === 'api' ? 'GELIA' : 'datos locales'}</div>
           <div className="client-number">#{cliente.numero_cliente}</div>
@@ -248,21 +321,25 @@ export function ClienteBusquedaView() {
             <div><dt>Lista</dt><dd>{cliente.lista_descuento || 'Público general'}</dd></div>
             <div><dt>Vendedor</dt><dd>{cliente.vendedor || 'No asignado'}</dd></div>
           </dl>
-          <button className="secondary-button" onClick={reset}>Consultar otro cliente</button>
+          <button className={`secondary-button${modoSimple ? ' simple-reset' : ''}`} onClick={reset} type="button">
+            Consultar otro cliente
+          </button>
         </section>
       )}
 
       {searched && !cliente && mode === 'number' && (
-        <section className="empty-result" aria-live="polite">
+        <section className="empty-result" aria-live="polite" ref={resultHeadingRef} tabIndex={-1}>
           <div className="empty-icon"><Icon name="users" /></div>
           <h2>Cliente no encontrado</h2>
           <p>{`No existe un cliente autorizado con el número ${numberQuery}.`}</p>
-          <button className="secondary-button" onClick={reset}>Limpiar búsqueda</button>
+          <button className={`secondary-button${modoSimple ? ' simple-reset' : ''}`} onClick={reset} type="button">
+            {modoSimple ? 'Consultar otro cliente' : 'Limpiar búsqueda'}
+          </button>
         </section>
       )}
 
       {searched && !cliente && mode === 'name' && results.length === 0 && (
-        <section className="empty-result" aria-live="polite">
+        <section className="empty-result" aria-live="polite" ref={resultHeadingRef} tabIndex={-1}>
           <div className="empty-icon"><Icon name="users" /></div>
           <h2>Sin coincidencias</h2>
           <p>
@@ -270,7 +347,9 @@ export function ClienteBusquedaView() {
               ? 'Sin conexión y sin catálogo local disponible. Conéctate a internet para buscar en GELIA.'
               : `No hay clientes autorizados que coincidan con "${nameQuery.trim()}".`}
           </p>
-          <button className="secondary-button" onClick={reset}>Limpiar búsqueda</button>
+          <button className={`secondary-button${modoSimple ? ' simple-reset' : ''}`} onClick={reset} type="button">
+            {modoSimple ? 'Consultar otro cliente' : 'Limpiar búsqueda'}
+          </button>
         </section>
       )}
     </div>

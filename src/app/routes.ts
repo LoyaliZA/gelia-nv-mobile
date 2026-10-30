@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 export type AppRoute =
   | 'inicio'
@@ -32,14 +32,14 @@ export function useAppRoute() {
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
-  const navigate = (nextRoute: AppRoute) => {
+  const navigate = useCallback((nextRoute: AppRoute) => {
     const nextHash = `#/${nextRoute}`
     if (window.location.hash === nextHash) {
       setRoute(nextRoute)
       return
     }
     window.location.hash = nextHash
-  }
+  }, [])
 
   return { route, navigate }
 }

@@ -6,7 +6,9 @@ import { ApiError } from '../../lib/api/apiClient'
 import { resolveProfilePhotoUrl } from '../../lib/geliaAssets'
 import { abrirPrivacidad } from '../../lib/privacidad'
 import { compressImageToWebp } from '../../utils/compressImage'
+import { verificarSuperAdmin } from '../auth/auth.api'
 import type { MobileSession } from '../auth/auth.types'
+import { useModosDispositivo } from '../dispositivo/useModosDispositivo'
 import { removeProfilePhoto, uploadProfilePhoto } from './profile.api'
 
 interface PerfilViewProps {
@@ -17,6 +19,12 @@ interface PerfilViewProps {
 
 export function PerfilView({ onLogout, onSessionUpdate, session }: PerfilViewProps) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const { modoKiosco, setModoKiosco } = useModosDispositivo()
+  const [kioscoAbierto, setKioscoAbierto] = useState(false)
+  const [kioscoLogin, setKioscoLogin] = useState('')
+  const [kioscoPassword, setKioscoPassword] = useState('')
+  const [kioscoError, setKioscoError] = useState('')
+  const [verificandoKiosco, setVerificandoKiosco] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [procesando, setProcesando] = useState(false)
   const [error, setError] = useState('')
@@ -68,6 +76,27 @@ export function PerfilView({ onLogout, onSessionUpdate, session }: PerfilViewPro
     }
   }
 
+  const cambiarKiosco = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!kioscoLogin.trim() || !kioscoPassword || verificandoKiosco) return
+    setVerificandoKiosco(true)
+    setKioscoError('')
+    try {
+      const permitido = await verificarSuperAdmin({ login: kioscoLogin.trim(), password: kioscoPassword })
+      if (!permitido) {
+        setKioscoError('Esta cuenta no puede cambiar el modo kiosco.')
+        return
+      }
+      await setModoKiosco(!modoKiosco)
+      setKioscoPassword('')
+      setKioscoAbierto(false)
+    } catch (caught) {
+      setKioscoError(caught instanceof ApiError ? caught.message : 'No fue posible verificar la cuenta.')
+    } finally {
+      setVerificandoKiosco(false)
+    }
+  }
+
   return (
     <div className="page-stack">
       <header className="page-heading"><span className="eyebrow">CUENTA GELIA_</span><h1>Mi perfil</h1></header>
@@ -104,6 +133,58 @@ export function PerfilView({ onLogout, onSessionUpdate, session }: PerfilViewPro
         <div className="profile-meta"><span>Permisos móviles</span><strong>{session.permissions.length}</strong></div>
         {error && <div className="form-error" role="alert">{error}</div>}
         {mensaje && <p className="passkey-success">{mensaje}</p>}
+      </section>
+
+      <section className="profile-card kiosk-card" id="modo-kiosco">
+        <h2>Modo kiosco</h2>
+        <p>
+          Modo supervisado para un equipo de trabajo. No controla el dispositivo, no oculta el sistema y no impide salir ni desinstalar.
+          Solo una cuenta con permiso de administración puede activarlo o desactivarlo. El modo simple se elige aparte, en Preferencias.
+        </p>
+        <p><strong>{modoKiosco ? 'Activo' : 'Inactivo'}</strong></p>
+        <button
+          className="secondary-button"
+          onClick={() => {
+            setKioscoAbierto((current) => !current)
+            setKioscoError('')
+            setKioscoPassword('')
+          }}
+          type="button"
+        >
+          {modoKiosco ? 'Desactivar modo kiosco' : 'Activar modo kiosco'}
+        </button>
+        {kioscoAbierto && (
+          <form className="kiosk-form" onSubmit={(event) => void cambiarKiosco(event)}>
+            <label>
+              Cuenta de administración
+              <input
+                autoCapitalize="none"
+                autoComplete="off"
+                autoCorrect="off"
+                name="kiosk-login"
+                onChange={(event) => setKioscoLogin(event.target.value)}
+                placeholder="usuario"
+                spellCheck={false}
+                value={kioscoLogin}
+              />
+            </label>
+            <label>
+              Contraseña
+              <input
+                autoComplete="off"
+                name="kiosk-password"
+                onChange={(event) => setKioscoPassword(event.target.value)}
+                placeholder="Contraseña"
+                type="password"
+                value={kioscoPassword}
+              />
+            </label>
+            {kioscoError && <div className="form-error" role="alert">{kioscoError}</div>}
+            <button className="primary-button" disabled={verificandoKiosco || !kioscoLogin.trim() || !kioscoPassword} type="submit">
+              {verificandoKiosco ? 'Verificando…' : 'Confirmar'}
+            </button>
+          </form>
+        )}
       </section>
 
       <button className="privacy-link" onClick={() => void abrirPrivacidad()} type="button">Aviso de privacidad</button>

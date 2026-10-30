@@ -46,7 +46,6 @@ public class SecureTokenPlugin extends Plugin {
             result.put("value", value);
             call.resolve(result);
         } catch (Exception error) {
-            wipe();
             call.reject("No se pudo leer el almacén seguro.", error);
         }
     }

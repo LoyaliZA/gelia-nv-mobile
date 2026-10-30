@@ -5,6 +5,7 @@ import { DashboardModuleCard } from '../../components/dashboard/DashboardModuleC
 import { DashboardPanel } from '../../components/dashboard/DashboardPanel'
 import { VisitasDelDiaWidget } from '../../components/dashboard/VisitasDelDiaWidget'
 import type { MobileSession } from '../auth/auth.types'
+import { SimpleDestinations } from '../../components/navigation/SimpleDestinations'
 import { ClienteSyncStatus } from '../clientes/ClienteSyncStatus'
 import { puedeConsultarClientesMovil } from '../clientes/mobileClienteAccess'
 import {
@@ -14,11 +15,12 @@ import {
 } from '../puntoVenta/puntoVentaAccess'
 
 interface DashboardViewProps {
+  modoSimple?: boolean
   onNavigate: (route: AppRoute) => void
   session: MobileSession
 }
 
-export function DashboardView({ onNavigate, session }: DashboardViewProps) {
+export function DashboardView({ modoSimple = false, onNavigate, session }: DashboardViewProps) {
   const showClientes = puedeConsultarClientesMovil(session.permissions)
   const showResguardos = puedeVerResguardosMovil(session.permissions)
   const showTurnos = puedeAbrirRecepcionTurnosMovil(session.permissions)
@@ -103,7 +105,9 @@ export function DashboardView({ onNavigate, session }: DashboardViewProps) {
         {showClientes ? <ClienteSyncStatus compact /> : null}
       </header>
 
-      {sections.length > 0 ? (
+      {modoSimple ? (
+        <SimpleDestinations onNavigate={onNavigate} permissions={session.permissions} />
+      ) : sections.length > 0 ? (
         <DashboardMobileView sections={sections} />
       ) : (
         <section className="lookup-card lookup-hint-only">

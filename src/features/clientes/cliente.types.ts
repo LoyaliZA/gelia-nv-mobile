@@ -32,4 +32,5 @@ export interface ClienteSyncState {
   lastSyncedAt: string | null
   error: string | null
   retryAt: number | null
+  requiereResincronizacion: boolean
 }

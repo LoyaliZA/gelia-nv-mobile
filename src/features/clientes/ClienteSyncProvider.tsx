@@ -4,11 +4,11 @@ import { ApiError } from '../../lib/api/apiClient'
 import { useAuth } from '../auth/useAuth'
 import type { MobileSession } from '../auth/auth.types'
 import { buscarClienteRemoto, buscarClientesRemoto } from './cliente.api'
-import { MENSAJE_CATALOGO_REQUIERE_CONEXION, evaluarVentanaCatalogo } from './catalogoVentana'
+import { mensajeCatalogoRequiereConexion, evaluarVentanaCatalogo } from './catalogoVentana'
 import { normalizeNumeroCliente } from './cliente.numero'
 import { ClienteSyncContext } from './ClienteSyncContext'
 import { createClienteSyncEngine, registrarParadaSync } from './cliente.sync.engine'
-import { buscarClienteLocal, buscarClientesLocal, guardarClientes } from './cliente.storage'
+import { buscarClienteLocal, buscarClientesLocal, contarClientesPorScope, guardarClientes } from './cliente.storage'
 import type { ClienteSyncState } from './cliente.types'
 import {
   MOBILE_CLIENTE_ACCESS_DENIED_MESSAGE,
@@ -27,16 +27,18 @@ function initialStateFor(canSync: boolean): ClienteSyncState {
       lastSyncedAt: null,
       error: MOBILE_CLIENTE_ACCESS_DENIED_MESSAGE,
       retryAt: null,
+      requiereResincronizacion: false,
     }
   }
 
   return {
-    phase: 'idle',
+    phase: 'connecting',
     downloaded: 0,
     total: null,
     lastSyncedAt: null,
     error: null,
     retryAt: null,
+    requiereResincronizacion: false,
   }
 }
 
@@ -63,8 +65,10 @@ export function ClienteSyncProvider({ children, session }: Props) {
       lastSyncedAt: null,
       error: MOBILE_CLIENTE_ACCESS_DENIED_MESSAGE,
       retryAt: null,
+      requiereResincronizacion: false,
     }
     : initialStateFor(canSyncClientes))
+  const downloadedRef = useRef(0)
 
   if (resetKey !== resetKeySeen) {
     setResetKeySeen(resetKey)
@@ -76,15 +80,30 @@ export function ClienteSyncProvider({ children, session }: Props) {
         lastSyncedAt: null,
         error: MOBILE_CLIENTE_ACCESS_DENIED_MESSAGE,
         retryAt: null,
+        requiereResincronizacion: false,
       }
       : initialStateFor(canSyncClientes))
   }
+
+  useEffect(() => {
+    downloadedRef.current = state.downloaded
+  }, [state.downloaded])
 
   useEffect(() => {
     sessionRef.current = session
     canSyncRef.current = puedeConsultarClientesMovil(session.permissions)
     authRef.current = auth
   }, [auth, session])
+
+  useEffect(() => {
+    if (canSyncClientes && !session.catalogBlocked) return
+    let active = true
+    void contarClientesPorScope(scopeKey).then((downloaded) => {
+      if (!active) return
+      setState((current) => ({ ...current, downloaded }))
+    })
+    return () => { active = false }
+  }, [canSyncClientes, scopeKey, session.catalogBlocked])
 
   useEffect(() => {
     if (session.catalogBlocked || !canSyncClientes) return
@@ -125,7 +144,17 @@ export function ClienteSyncProvider({ children, session }: Props) {
 
   const syncNow = useCallback(() => {
     if (!canSyncRef.current || sessionRef.current.catalogBlocked) return Promise.resolve()
-    return engineRef.current?.requestSync() ?? Promise.resolve()
+    return engineRef.current?.requestSync(true) ?? Promise.resolve()
+  }, [])
+
+  const resincronizarCatalogo = useCallback(() => {
+    if (!canSyncRef.current || sessionRef.current.catalogBlocked) return Promise.resolve()
+    return engineRef.current?.resincronizar() ?? Promise.resolve()
+  }, [])
+
+  const eliminarBaseLocal = useCallback(() => {
+    if (!canSyncRef.current || sessionRef.current.catalogBlocked) return Promise.resolve()
+    return engineRef.current?.eliminarBaseLocal() ?? Promise.resolve()
   }, [])
 
   const findCliente = useCallback(async (numeroCliente: string) => {
@@ -138,7 +167,7 @@ export function ClienteSyncProvider({ children, session }: Props) {
 
     if (!catalogoVigente(sessionRef.current)) {
       if (navigator.onLine) void authRef.current.revalidarSesion()
-      return { cliente: null, source: 'local' as const, error: MENSAJE_CATALOGO_REQUIERE_CONEXION }
+      return { cliente: null, source: 'local' as const, error: mensajeCatalogoRequiereConexion(downloadedRef.current) }
     }
 
     const local = await buscarClienteLocal(scopeKey, numero)
@@ -151,7 +180,7 @@ export function ClienteSyncProvider({ children, session }: Props) {
     try {
       const cliente = await buscarClienteRemoto(session, numero)
       if (!catalogoVigente(sessionRef.current) || sessionRef.current.catalogBlocked) {
-        return { cliente: null, source: 'api' as const, error: MENSAJE_CATALOGO_REQUIERE_CONEXION }
+        return { cliente: null, source: 'api' as const, error: mensajeCatalogoRequiereConexion(downloadedRef.current) }
       }
       setOnline(true)
       await guardarClientes(scopeKey, [cliente])
@@ -193,7 +222,7 @@ export function ClienteSyncProvider({ children, session }: Props) {
         data: [],
         meta: emptyMeta,
         source: 'local' as const,
-        error: MENSAJE_CATALOGO_REQUIERE_CONEXION,
+        error: mensajeCatalogoRequiereConexion(downloadedRef.current),
       }
     }
 
@@ -201,7 +230,7 @@ export function ClienteSyncProvider({ children, session }: Props) {
       try {
         const pageResult = await buscarClientesRemoto(session, { q: normalized, page, perPage: 10 })
         if (!catalogoVigente(sessionRef.current) || sessionRef.current.catalogBlocked) {
-          return { data: [], meta: emptyMeta, source: 'api' as const, error: MENSAJE_CATALOGO_REQUIERE_CONEXION }
+          return { data: [], meta: emptyMeta, source: 'api' as const, error: mensajeCatalogoRequiereConexion(downloadedRef.current) }
         }
         setOnline(true)
         if (pageResult.data.length) await guardarClientes(scopeKey, pageResult.data)
@@ -235,8 +264,10 @@ export function ClienteSyncProvider({ children, session }: Props) {
       findCliente,
       searchClientes,
       syncNow,
+      resincronizarCatalogo,
+      eliminarBaseLocal,
     }),
-    [canSyncClientes, findCliente, online, searchClientes, state, syncNow],
+    [canSyncClientes, eliminarBaseLocal, findCliente, online, resincronizarCatalogo, searchClientes, state, syncNow],
   )
   return <ClienteSyncContext.Provider value={value}>{children}</ClienteSyncContext.Provider>
 }
