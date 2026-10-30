@@ -1,5 +1,58 @@
 # React + TypeScript + Vite
 
+## Release Android de producción
+
+Usar Node 24, el JDK de Android Studio y el SDK Android 36. Se conserva el
+lockfile: no actualizar dependencias como parte de una publicación.
+
+- `npm run android:prepare` instala con `npm ci`, compila producción y sincroniza
+  Capacitor. Se detiene en el primer error. `refresh.ps1` hace lo mismo y abre
+  Android Studio; `update.ps1` antes ejecuta `git pull --ff-only`.
+- `sync.ps1` conserva su flujo interactivo de commit/push, comprueba cada paso
+  y reconstruye incluso si Git ya está actualizado.
+- Definir `VITE_API_BASE_URL` y, si corresponde, `VITE_GELIA_ASSETS_URL` en
+  `.env.production.local` o en el entorno. Build y sincronización leen los
+  mismos archivos de producción. Las URLs deben ser HTTPS sin credenciales;
+  las variables `VITE_*` son públicas en el paquete y no deben contener secretos.
+- Para un AAB firmado, configurar en el entorno `ANDROID_KEYSTORE` (ruta
+  absoluta), `ANDROID_KEY_ALIAS` y `ANDROID_KEYSTORE_PASSWORD`. Si la clave
+  tiene otra contraseña, definir también `ANDROID_KEY_PASSWORD`; de lo contrario
+  se usa la del almacén. No guardar estas credenciales en Git.
+- Ejecutar `npm run android:release`. Exige configuración de firma, prepara
+  los recursos y ejecuta `lintRelease bundleRelease`. También se puede firmar
+  desde Android Studio después de preparar los recursos.
+
+El AAB nuevo se genera en
+`android/app/build/outputs/bundle/release/app-release.aab`. Conservar junto a él
+el directorio `android/app/build/outputs/mapping/release`, el commit, el lockfile
+y el estado de cambios locales. Los archivos antiguos en `android/app/release`
+no identifican el release nuevo. Comprobar que `androidVersionCode` de
+`package.json` sea mayor que cualquier código ya subido a Play.
+
+R8 y la reducción de recursos están habilitados solo para release mediante el
+DSL heredado que usa este proyecto (`android.newDsl=false`). Capacitor aporta
+reglas consumidoras para sus plugins y `SecureTokenPlugin`; no añadir reglas
+globales para conservar todas las clases. Mantener las opciones de compatibilidad
+de Gradle hasta verificar por separado una migración de plugins/DSL.
+
+Antes de producción, instalar desde el canal interno de Google Play y probar:
+actualización sobre la versión anterior, arranque, login, persistencia y borrado
+del token, passkeys, cámara/selector de fotos, QR y subida de evidencias.
+Inspeccionar el AAB para verificar firma, versión, DEX, mapas y cualquier
+biblioteca nativa `.so` y su compatibilidad con páginas de 16 KB.
+
+### Firma de Play y passkeys
+
+En Play Console usar el certificado **App signing**, que puede diferir de la
+clave de subida o de una APK local. Su SHA-256 debe figurar para
+`mx.neobash.gelianv` en `https://gelianv.neobash.site/.well-known/assetlinks.json`,
+con la relación de credenciales correspondiente; el backend debe aceptar su
+origen `android:apk-key-hash:...` en `WEBAUTHN_ANDROID_APK_KEY_HASHES`.
+Verificar además que el RP ID coincida con el dominio configurado.
+El script de huellas ya no elige el certificado debug por defecto. Su salida
+describe el keystore indicado, no demuestra qué certificado utiliza Play.
+No cambiar el dominio de producción sin coordinar la asociación y el backend.
+
 ## Passkeys / huella en Android (APK)
 
 La APK usa `@capgo/capacitor-passkey` para enlazar WebAuthn con el lector de huella vía Credential Manager. El dominio de confianza debe ser el mismo que en el API (`gelianv.neobash.site`).

@@ -27,3 +27,7 @@ dist-ssr
 !.env.example
 docs/*
 /.impeccable
+
+# Signing credentials stay outside version control.
+*.jks
+*.keystore

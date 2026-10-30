@@ -1,13 +1,17 @@
 import type { CapacitorConfig } from '@capacitor/cli';
+import { loadEnv } from 'vite';
+
+// Use the same production .env files and process overrides as vite build.
+const productionEnv = loadEnv('production', process.cwd(), 'VITE_');
 
 function passkeyOriginFromEnv(): string {
-  const configured = process.env.VITE_GELIA_ASSETS_URL?.trim();
+  const configured = productionEnv.VITE_GELIA_ASSETS_URL?.trim();
   if (configured) {
-    try {
-      return new URL(configured).origin;
-    } catch {
-      // Valor por defecto de producción.
+    const url = new URL(configured);
+    if (url.protocol !== 'https:' || url.username || url.password) {
+      throw new Error('VITE_GELIA_ASSETS_URL debe ser una URL HTTPS sin credenciales.');
     }
+    return url.origin;
   }
   return 'https://gelianv.neobash.site';
 }

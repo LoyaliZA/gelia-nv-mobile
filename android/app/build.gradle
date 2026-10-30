@@ -1,6 +1,7 @@
 apply plugin: 'com.android.application'
 
 def packageJson = new groovy.json.JsonSlurper().parseText(file('../../package.json').getText('UTF-8'))
+def releaseKeystore = System.getenv('ANDROID_KEYSTORE')
 
 android {
     namespace = "mx.neobash.gelianv"
@@ -18,10 +19,25 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (releaseKeystore) {
+                storeFile rootProject.file(releaseKeystore)
+                storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('ANDROID_KEY_ALIAS')
+                keyPassword System.getenv('ANDROID_KEY_PASSWORD') ?: System.getenv('ANDROID_KEYSTORE_PASSWORD')
+            }
+        }
+    }
     buildTypes {
         release {
-            minifyEnabled false
+            // The project currently opts into AGP's legacy DSL (android.newDsl=false).
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (releaseKeystore) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

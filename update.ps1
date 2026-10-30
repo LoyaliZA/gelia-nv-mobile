@@ -1,22 +1,10 @@
-# Iniciar mensaje de proceso de actualización
-#Descargar cambios del repositorio
- Write-Host "-------------------------------- Descargando cambios del repositorio -------------------------------- /n"
- git pull
-
-#Actualizar dependencias
- Write-Host "-------------------------------- Actualizando dependencias -------------------------------- /n"
- npm.cmd ci
-
-#Actualizar build
- Write-Host "-------------------------------- Compilando y generando el build de la aplicacion -------------------------------- /n"
-
- npm.cmd run build
-
-#sincronizar con android studio
- Write-Host "-------------------------------- Sincronizando con android studio -------------------------------- /n"
- npx.cmd cap sync android
-
-# Abrir Android Studio
- Write-Host "-------------------------------- Abriendo Android Studio -------------------------------- /n"
-
- npx.cmd cap open android
+$ErrorActionPreference = 'Stop'
+Push-Location $PSScriptRoot
+try {
+    & git pull --ff-only
+    if ($LASTEXITCODE -ne 0) { throw 'No se pudo actualizar el repositorio.' }
+    & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/scripts/prepare-android.ps1" -OpenStudio
+    if ($LASTEXITCODE -ne 0) { throw 'Falló la preparación Android.' }
+} finally {
+    Pop-Location
+}

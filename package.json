@@ -1,15 +1,17 @@
 {
   "name": "gelia-nv-movil",
   "private": true,
-  "version": "1.4.5",
-  "androidVersionCode": 6,
+  "version": "1.4.6",
+  "androidVersionCode": 7,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "android:signing-fingerprint": "bash scripts/android-signing-fingerprint.sh"
+    "android:signing-fingerprint": "bash scripts/android-signing-fingerprint.sh",
+    "android:prepare": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/prepare-android.ps1",
+    "android:release": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release-android.ps1"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",

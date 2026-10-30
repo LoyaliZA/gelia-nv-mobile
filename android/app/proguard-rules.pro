@@ -1,4 +1,6 @@
 # Add project specific ProGuard rules here.
+# Capacitor supplies consumer rules for Plugin subclasses and bridge annotations,
+# including SecureTokenPlugin. Add only targeted rules for demonstrated release failures.
 # You can control the set of applied configuration files using the
 # proguardFiles setting in build.gradle.
 #

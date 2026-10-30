@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-KEYSTORE="${1:-${ANDROID_KEYSTORE:-$HOME/.android/debug.keystore}}"
-ALIAS="${2:-${ANDROID_KEY_ALIAS:-androiddebugkey}}"
-STOREPASS="${3:-${ANDROID_KEYSTORE_PASSWORD:-android}}"
+KEYSTORE="${1:-${ANDROID_KEYSTORE:-}}"
+ALIAS="${2:-${ANDROID_KEY_ALIAS:-}}"
+STOREPASS="${3:-${ANDROID_KEYSTORE_PASSWORD:-}}"
+
+if [[ -z "$KEYSTORE" || -z "$ALIAS" || -z "$STOREPASS" ]]; then
+  echo 'Indica keystore, alias y contraseña mediante argumentos o variables ANDROID_KEYSTORE, ANDROID_KEY_ALIAS y ANDROID_KEYSTORE_PASSWORD.' >&2
+  echo 'No se utiliza el certificado debug por defecto. Para Play, verifica además el certificado App signing de Play Console.' >&2
+  exit 1
+fi
 
 if [[ ! -f "$KEYSTORE" ]]; then
   echo "No se encontró el keystore: $KEYSTORE" >&2
